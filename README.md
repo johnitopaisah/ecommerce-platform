@@ -59,7 +59,7 @@ ecommerce-platform/
 ### 1. Clone the repo
 
 ```bash
-git clone <your-repo-url>
+git clone git@github.com:johnitopaisah/ecommerce-platform.git
 cd ecommerce-platform
 ```
 
