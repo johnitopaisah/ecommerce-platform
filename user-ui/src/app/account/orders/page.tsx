@@ -7,6 +7,7 @@ import type { Order } from "@/types";
 import { formatPrice, getOrderStatusColor } from "@/lib/utils";
 import { PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import type { AxiosResponse } from "axios";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -15,7 +16,7 @@ export default function OrdersPage() {
   useEffect(() => {
     ordersApi
       .list()
-      .then((res) => setOrders(res.data))
+      .then((res: AxiosResponse<Order[]>) => setOrders(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -49,9 +50,7 @@ export default function OrdersPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-gray-900">
         Orders
-        <span className="ml-2 text-sm font-normal text-gray-400">
-          ({orders.length})
-        </span>
+        <span className="ml-2 text-sm font-normal text-gray-400">({orders.length})</span>
       </h1>
       {orders.map((order) => (
         <Link
@@ -64,19 +63,14 @@ export default function OrdersPage() {
               <p className="font-semibold text-gray-900">#{order.order_number}</p>
               <p className="text-xs text-gray-500 mt-0.5">
                 {new Date(order.created).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
+                  day: "numeric", month: "long", year: "numeric",
                 })}
                 {" · "}
-                {order.items.length}{" "}
-                {order.items.length === 1 ? "item" : "items"}
+                {order.items.length} {order.items.length === 1 ? "item" : "items"}
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <span
-                className={`text-xs px-2.5 py-1 rounded-full font-medium border ${getOrderStatusColor(order.status)}`}
-              >
+              <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${getOrderStatusColor(order.status)}`}>
                 {order.status_display}
               </span>
               {!order.billing_status && (
@@ -84,9 +78,7 @@ export default function OrdersPage() {
                   Awaiting payment
                 </span>
               )}
-              <span className="font-bold text-gray-900">
-                {formatPrice(order.total_paid)}
-              </span>
+              <span className="font-bold text-gray-900">{formatPrice(order.total_paid)}</span>
             </div>
           </div>
         </Link>

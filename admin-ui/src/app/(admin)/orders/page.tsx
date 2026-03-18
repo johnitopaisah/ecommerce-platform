@@ -7,6 +7,7 @@ import type { Order } from "@/types";
 import { formatPrice, formatDate, getOrderStatusColor } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import OrderDrawer from "./OrderDrawer";
+import type { AxiosResponse } from "axios";
 
 const STATUS_OPTIONS = [
   { label: "All", value: "" },
@@ -28,7 +29,7 @@ export default function OrdersPage() {
   const load = (status = statusFilter) => {
     setLoading(true);
     ordersApi.list(status ? { status } : undefined)
-      .then((r) => setOrders(r.data))
+      .then((r: AxiosResponse<Order[]>) => setOrders(r.data))
       .finally(() => setLoading(false));
   };
 

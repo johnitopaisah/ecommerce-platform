@@ -5,7 +5,7 @@ import { Search, CheckCircle, XCircle, UserX } from "lucide-react";
 import { usersApi } from "@/lib/services";
 import type { User } from "@/types";
 import { formatDate } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
+import type { AxiosResponse } from "axios";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -20,7 +20,7 @@ export default function UsersPage() {
     if (search) params.search = search;
 
     usersApi.list(params)
-      .then((r) => setUsers(r.data))
+      .then((r: AxiosResponse<User[]>) => setUsers(r.data))
       .finally(() => setLoading(false));
   };
 
@@ -45,7 +45,6 @@ export default function UsersPage() {
         <p className="text-sm text-gray-500 mt-0.5">{users.length} users</p>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
           {(["all", "active", "inactive"] as const).map((f) => (
@@ -60,7 +59,6 @@ export default function UsersPage() {
             </button>
           ))}
         </div>
-
         <form onSubmit={handleSearch} className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -72,7 +70,6 @@ export default function UsersPage() {
         </form>
       </div>
 
-      {/* Table */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-sm text-gray-400">Loading users…</div>
@@ -120,9 +117,7 @@ export default function UsersPage() {
                 ))}
                 {!users.length && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
-                      No users found.
-                    </td>
+                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">No users found.</td>
                   </tr>
                 )}
               </tbody>

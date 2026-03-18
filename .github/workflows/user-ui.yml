@@ -18,7 +18,7 @@ env:
 
 jobs:
   test:
-    name: Lint & type-check
+    name: Lint & build check
     runs-on: ubuntu-latest
 
     steps:
@@ -36,15 +36,11 @@ jobs:
         working-directory: user-ui
         run: npm ci --frozen-lockfile
 
-      - name: TypeScript type-check
-        working-directory: user-ui
-        run: npx tsc --noEmit
-
       - name: ESLint
         working-directory: user-ui
         run: npm run lint
 
-      - name: Next.js build check
+      - name: Next.js build (includes type-check)
         working-directory: user-ui
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1

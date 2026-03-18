@@ -7,26 +7,27 @@ import { ordersApi } from "@/lib/services";
 import type { Order } from "@/types";
 import { formatPrice, getOrderStatusColor } from "@/lib/utils";
 import { ShoppingBag, User, Package } from "lucide-react";
+import type { AxiosResponse } from "axios";
 
 export default function AccountDashboard() {
   const { user } = useAuthStore();
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
 
   useEffect(() => {
-    ordersApi.list().then((res) => setRecentOrders(res.data.slice(0, 3))).catch(() => {});
+    ordersApi.list()
+      .then((res: AxiosResponse<Order[]>) => setRecentOrders(res.data.slice(0, 3)))
+      .catch(() => {});
   }, []);
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
 
-      {/* Welcome card */}
       <div className="bg-gray-900 text-white rounded-xl p-6">
         <p className="text-gray-400 text-sm mb-1">Welcome back,</p>
         <p className="text-xl font-bold">{user?.full_name || user?.user_name}</p>
       </div>
 
-      {/* Quick links */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Link
           href="/account/orders"
@@ -66,7 +67,6 @@ export default function AccountDashboard() {
         </Link>
       </div>
 
-      {/* Recent orders */}
       {recentOrders.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">

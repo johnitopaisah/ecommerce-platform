@@ -19,10 +19,10 @@ export default function OrderDetailPage() {
   useEffect(() => {
     ordersApi
       .detail(orderNumber)
-      .then((res) => setOrder(res.data))
+      .then((res: { data: Order }) => setOrder(res.data))
       .catch(() => router.replace("/account/orders"))
       .finally(() => setLoading(false));
-  }, [orderNumber]);
+  }, [orderNumber, router]);
 
   const handleCancel = async () => {
     if (!order || !confirm("Are you sure you want to cancel this order?")) return;
@@ -30,8 +30,9 @@ export default function OrderDetailPage() {
     try {
       const res = await ordersApi.cancel(order.order_number);
       setOrder(res.data);
-    } catch (err: any) {
-      alert(err?.response?.data?.detail || "Could not cancel order.");
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e?.response?.data?.detail || "Could not cancel order.");
     } finally {
       setCancelling(false);
     }
@@ -54,7 +55,6 @@ export default function OrderDetailPage() {
         <h1 className="text-2xl font-bold text-gray-900">Order #{order.order_number}</h1>
       </div>
 
-      {/* Status banner */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center justify-between flex-wrap gap-4">
         <div>
           <p className="text-sm text-gray-500">Placed on</p>
@@ -74,7 +74,6 @@ export default function OrderDetailPage() {
         )}
       </div>
 
-      {/* Items */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
           <h2 className="font-semibold text-gray-900">Items</h2>
@@ -100,7 +99,6 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Shipping address */}
       <div className="bg-white border border-gray-200 rounded-xl p-5">
         <h2 className="font-semibold text-gray-900 mb-3">Shipping address</h2>
         <address className="not-italic text-sm text-gray-600 space-y-1">

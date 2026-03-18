@@ -6,6 +6,7 @@ import { categoriesApi } from "@/lib/services";
 import type { Category } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import type { AxiosResponse } from "axios";
 
 interface FormState { name: string; description: string; is_active: boolean; }
 const empty: FormState = { name: "", description: "", is_active: true };
@@ -20,7 +21,7 @@ export default function CategoriesPage() {
 
   const load = () => {
     categoriesApi.list()
-      .then((r) => setCategories(r.data))
+      .then((r: AxiosResponse<Category[]>) => setCategories(r.data))
       .finally(() => setLoading(false));
   };
 
@@ -45,8 +46,9 @@ export default function CategoriesPage() {
       }
       handleCancel();
       load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || "Save failed.");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      setError(err?.response?.data?.detail || "Save failed.");
     } finally {
       setSaving(false);
     }
@@ -63,7 +65,6 @@ export default function CategoriesPage() {
       <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Form */}
         <div className="lg:col-span-1">
           <div className="bg-white border border-gray-200 rounded-xl p-5 sticky top-6">
             <h2 className="font-semibold text-gray-900 mb-4">
@@ -109,7 +110,6 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        {/* Table */}
         <div className="lg:col-span-2">
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             {loading ? (
@@ -138,16 +138,10 @@ export default function CategoriesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2 justify-end">
-                          <button
-                            onClick={() => handleEdit(cat)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                          >
+                          <button onClick={() => handleEdit(cat)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100">
                             <Pencil size={14} />
                           </button>
-                          <button
-                            onClick={() => handleDelete(cat.slug)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50"
-                          >
+                          <button onClick={() => handleDelete(cat.slug)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50">
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -155,9 +149,7 @@ export default function CategoriesPage() {
                     </tr>
                   ))}
                   {!categories.length && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">No categories yet.</td>
-                    </tr>
+                    <tr><td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">No categories yet.</td></tr>
                   )}
                 </tbody>
               </table>

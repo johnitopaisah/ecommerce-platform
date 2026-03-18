@@ -5,11 +5,14 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { Users, Package, ShoppingBag, TrendingUp, AlertTriangle, XCircle } from "lucide-react";
+import {
+  Users, Package, ShoppingBag, TrendingUp, AlertTriangle, XCircle,
+} from "lucide-react";
 import { statsApi } from "@/lib/services";
 import { StatCard } from "@/components/ui/StatCard";
 import { formatPrice } from "@/lib/utils";
 import type { AdminStats } from "@/types";
+import type { AxiosResponse } from "axios";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -17,7 +20,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     statsApi.get()
-      .then((r) => setStats(r.data))
+      .then((r: AxiosResponse<AdminStats>) => setStats(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -92,7 +95,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
               <AlertTriangle size={18} className="text-amber-600 shrink-0" />
               <p className="text-sm text-amber-800">
-                <span className="font-semibold">{stats.products.low_stock}</span> products are low on stock (≤5 units)
+                <span className="font-semibold">{stats.products.low_stock}</span> products are low on stock
               </p>
             </div>
           )}
@@ -130,15 +133,18 @@ export default function DashboardPage() {
                 cx="50%" cy="50%"
                 innerRadius={60} outerRadius={90}
                 paddingAngle={3} dataKey="value"
-                label={({ name, value }) => `${name}: ${value}`}
+                label={({ name, value }: { name: string; value: number }) => `${name}: ${value}`}
                 labelLine={false}
               >
                 {productData.map((entry, index) => (
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Pie>
-              <Legend iconType="circle" iconSize={8}
-                formatter={(value) => <span style={{ fontSize: 12, color: "#374151" }}>{value}</span>}
+              <Legend
+                iconType="circle" iconSize={8}
+                formatter={(value: string) => (
+                  <span style={{ fontSize: 12, color: "#374151" }}>{value}</span>
+                )}
               />
               <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }} />
             </PieChart>
@@ -163,7 +169,8 @@ export default function DashboardPage() {
           </div>
         </div>
         <p className="text-xs text-gray-400 mt-4">
-          "All orders" includes pending orders awaiting payment. "Stripe confirmed" shows only webhook-confirmed payments.
+          "All orders" includes pending orders awaiting payment.
+          "Stripe confirmed" shows only webhook-confirmed payments.
         </p>
       </div>
     </div>

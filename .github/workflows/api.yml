@@ -10,7 +10,7 @@ on:
     branches: [main]
     paths:
       - "api/**"
-  workflow_call:   # allows ci.yml to call this workflow
+  workflow_call:
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/ecommerce-api
@@ -91,22 +91,20 @@ jobs:
           DJANGO_SETTINGS_MODULE: config.settings.development
         run: python manage.py migrate --noinput
 
-      - name: Run linting
+      - name: Run linting (flake8)
         working-directory: api
         run: |
-          flake8 apps/ config/ \
-            --max-line-length=120 \
-            --exclude=migrations,__pycache__ \
-            --statistics \
-            --count
+          # flake8 reads config from setup.cfg automatically
+          # (max-line-length=120, ignores E203 W503 F401, excludes migrations)
+          flake8 apps/ config/ --statistics --count
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: api
         env:
           DJANGO_SETTINGS_MODULE: config.settings.development
         run: |
-          coverage run -m pytest apps/ -v --tb=short 2>&1 | tee test-results.txt || \
-            echo "No tests found yet — skipping"
+          coverage run -m pytest apps/ -v --tb=short 2>&1 | tee test-results.txt \
+            || echo "No tests found yet — skipping"
           coverage report --skip-covered || true
           coverage xml -o coverage.xml || true
 
@@ -179,9 +177,7 @@ jobs:
 
       - name: Print scan summary
         if: always()
-        run: |
-          echo "=== Trivy Scan Results ==="
-          cat trivy-api-report.txt || true
+        run: cat trivy-api-report.txt || true
 
       - name: Push to Docker Hub
         uses: docker/build-push-action@v5
@@ -193,6 +189,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Image digest
-        run: echo "Pushed ${{ env.IMAGE_NAME }} — digest ${{ steps.push.outputs.digest }}"
