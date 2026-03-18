@@ -6,20 +6,25 @@ Endpoints (all under /api/v1/auth/):
   GET    activate/<uidb64>/<token>/   — activate account via email link
   GET    me/                          — get current user profile
   PUT    me/                          — update current user profile
-  DELETE me/                          — deactivate account (soft delete)
+  DELETE me/deactivate/               — deactivate account (soft delete)
   POST   me/change-password/          — change password (requires old password)
   POST   token/                       — obtain JWT pair (login)
   POST   token/refresh/               — refresh access token
   POST   token/blacklist/             — logout (blacklist refresh token)
   POST   password-reset/              — request password reset email
   POST   password-reset/confirm/      — confirm reset with uid + token + new password
+
+Admin endpoints (under /api/v1/admin/):
+  GET    users/                       — list all users
+  GET    users/<id>/                  — user detail
+  PUT    users/<id>/                  — update user
+  POST   users/<id>/deactivate/       — deactivate user
+  GET    stats/                       — platform dashboard stats
 """
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sites.shortcuts import get_current_site
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
@@ -30,6 +35,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
+from apps.core.permissions import IsAdminUser
 from .serializers import (
     RegisterSerializer,
     UserSerializer,
@@ -55,9 +61,7 @@ def register(request):
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
-
     _send_activation_email(request, user)
-
     return Response(
         {'detail': 'Account created. Please check your email to activate your account.'},
         status=status.HTTP_201_CREATED,
@@ -68,9 +72,7 @@ def _send_activation_email(request, user):
     current_site = get_current_site(request)
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = account_activation_token.make_token(user)
-    activation_url = (
-        f'http://{current_site.domain}/api/v1/auth/activate/{uid}/{token}/'
-    )
+    activation_url = f'http://{current_site.domain}/api/v1/auth/activate/{uid}/{token}/'
     subject = 'Activate your account'
     message = (
         f'Hi {user.user_name},\n\n'
@@ -106,7 +108,6 @@ def activate(request, uidb64, token):
     user.is_active = True
     user.save(update_fields=['is_active'])
 
-    # Issue JWT tokens immediately so the user is logged in after activation
     refresh = RefreshToken.for_user(user)
     return Response({
         'detail': 'Account activated successfully.',
@@ -187,9 +188,7 @@ def password_reset_request(request):
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
             current_site = get_current_site(request)
-            reset_url = (
-                f'http://{current_site.domain}/reset-password/{uid}/{token}/'
-            )
+            reset_url = f'http://{current_site.domain}/reset-password/{uid}/{token}/'
             subject = 'Reset your password'
             message = (
                 f'Hi {user.user_name},\n\n'
@@ -243,3 +242,136 @@ def password_reset_confirm(request):
     user.set_password(new_password)
     user.save(update_fields=['password'])
     return Response({'detail': 'Password has been reset successfully.'})
+
+
+# ── Admin user management ──────────────────────────────────────────────────────
+
+@extend_schema(tags=['admin'])
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def admin_user_list(request):
+    """
+    List all users.
+    Optional query params: ?is_active=true|false, ?search=<email or username>
+    """
+    users = User.objects.all().order_by('-created')
+
+    is_active = request.query_params.get('is_active')
+    if is_active is not None:
+        users = users.filter(is_active=(is_active.lower() == 'true'))
+
+    search = request.query_params.get('search', '').strip()
+    if search:
+        users = users.filter(email__icontains=search) | users.filter(user_name__icontains=search)
+
+    return Response(UserSerializer(users, many=True).data)
+
+
+@extend_schema(tags=['admin'])
+@api_view(['GET', 'PUT', 'PATCH'])
+@permission_classes([IsAdminUser])
+def admin_user_detail(request, user_id):
+    """Retrieve or update any user account."""
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'not_found', 'detail': 'User not found.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if request.method == 'GET':
+        return Response(UserSerializer(user).data)
+
+    serializer = UserUpdateSerializer(
+        user, data=request.data, partial=(request.method == 'PATCH')
+    )
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(UserSerializer(user).data)
+
+
+@extend_schema(tags=['admin'])
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def admin_user_deactivate(request, user_id):
+    """Deactivate a user account."""
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'not_found', 'detail': 'User not found.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    user.is_active = False
+    user.save(update_fields=['is_active'])
+    return Response({'detail': f'User {user.email} deactivated.'})
+
+
+# ── Admin dashboard stats ──────────────────────────────────────────────────────
+
+@extend_schema(tags=['admin'])
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def admin_stats(request):
+    """
+    Return aggregate platform stats for the admin dashboard.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    from apps.orders.models import Order, OrderStatus
+    from apps.store.models import Product
+
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    last_30_days = now - timedelta(days=30)
+
+    total_users = User.objects.count()
+    active_users = User.objects.filter(is_active=True).count()
+    new_users_today = User.objects.filter(created__gte=today_start).count()
+
+    total_products = Product.objects.filter(is_active=True).count()
+    low_stock_products = Product.objects.filter(
+        is_active=True, stock_quantity__gt=0, stock_quantity__lte=5
+    ).count()
+    out_of_stock_products = Product.objects.filter(
+        is_active=True, stock_quantity=0
+    ).count()
+
+    total_orders = Order.objects.count()
+    orders_today = Order.objects.filter(created__gte=today_start).count()
+    pending_orders = Order.objects.filter(status=OrderStatus.PENDING).count()
+
+    from django.db.models import Sum
+    revenue_total = (
+        Order.objects
+        .filter(billing_status=True)
+        .aggregate(total=Sum('total_paid'))['total'] or 0
+    )
+    revenue_last_30_days = (
+        Order.objects
+        .filter(billing_status=True, created__gte=last_30_days)
+        .aggregate(total=Sum('total_paid'))['total'] or 0
+    )
+
+    return Response({
+        'users': {
+            'total': total_users,
+            'active': active_users,
+            'new_today': new_users_today,
+        },
+        'products': {
+            'total_active': total_products,
+            'low_stock': low_stock_products,
+            'out_of_stock': out_of_stock_products,
+        },
+        'orders': {
+            'total': total_orders,
+            'today': orders_today,
+            'pending': pending_orders,
+        },
+        'revenue': {
+            'total': str(revenue_total),
+            'last_30_days': str(revenue_last_30_days),
+        },
+    })
