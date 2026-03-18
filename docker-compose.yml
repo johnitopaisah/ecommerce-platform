@@ -1,0 +1,82 @@
+version: '3.9'
+
+# ── Shared network ─────────────────────────────────────────────────────────────
+networks:
+  ecom_net:
+    driver: bridge
+
+# ── Named volumes ──────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:
+
+services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: ecom_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ecommerce_db
+      POSTGRES_USER: ecom_user
+      POSTGRES_PASSWORD: ecom_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"          # exposed so you can connect with TablePlus / psql locally
+    networks:
+      - ecom_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecom_user -d ecommerce_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ecom_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"          # exposed so you can inspect with redis-cli locally
+    networks:
+      - ecom_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Django API ───────────────────────────────────────────────────────────────
+  # NOTE: The Dockerfile for `api` is built in Phase 6.
+  # For Phase 1, run the Django dev server OUTSIDE Docker (see README).
+  # This service block is here ready for Phase 6 — comment it out for now.
+  #
+  # api:
+  #   build:
+  #     context: ./api
+  #     dockerfile: Dockerfile
+  #   container_name: ecom_api
+  #   restart: unless-stopped
+  #   env_file: ./api/.env
+  #   environment:
+  #     DJANGO_SETTINGS_MODULE: config.settings.development
+  #     DATABASE_URL: postgres://ecom_user:ecom_pass@db:5432/ecommerce_db
+  #     REDIS_URL: redis://redis:6379/0
+  #   volumes:
+  #     - ./api:/app
+  #     - media_data:/app/media
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - ecom_net

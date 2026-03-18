@@ -1,0 +1,49 @@
+# Core
+Django==5.1.2
+djangorestframework==3.15.2
+
+# Database
+psycopg2-binary==2.9.10
+dj-database-url==2.3.0
+
+# Cache / Sessions / Broker
+redis==5.2.1
+django-redis==5.4.0
+
+# Auth
+djangorestframework-simplejwt==5.3.1
+
+# CORS
+django-cors-headers==4.6.0
+
+# Environment variables
+python-dotenv==1.0.1
+
+# Storage (S3 - wired up in production settings, not active yet)
+django-storages==1.14.4
+boto3==1.35.85
+
+# Image handling
+Pillow==11.0.0
+
+# Countries field
+django-countries==7.6.1
+
+# API filtering
+django-filter==24.3
+
+# OpenAPI / Swagger docs
+drf-spectacular==0.27.2
+
+# Payment
+stripe==11.3.0
+
+# Async tasks (celery wired up later, installed now)
+celery==5.4.0
+django-celery-beat==2.7.0
+
+# WSGI server
+gunicorn==23.0.0
+
+# Code quality
+flake8==7.1.1
