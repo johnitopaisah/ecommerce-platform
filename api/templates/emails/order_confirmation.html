@@ -1,0 +1,54 @@
+{% extends "emails/base.html" %}
+{% block subject %}Order confirmed — #{{ order.order_number }}{% endblock %}
+{% block content %}
+  <h2>Your order is confirmed!</h2>
+  <p>Hi {{ order.full_name }}, thank you for your purchase. Here's a summary of your order.</p>
+
+  <!-- Order meta -->
+  <div class="highlight-box" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+    <div>
+      <p class="label">Order number</p>
+      <p class="value">#{{ order.order_number }}</p>
+    </div>
+    <div>
+      <p class="label">Date</p>
+      <p class="value">{{ order.created|date:"j M Y" }}</p>
+    </div>
+    <div>
+      <p class="label">Status</p>
+      <p class="value">{{ order.get_status_display }}</p>
+    </div>
+    <div>
+      <p class="label">Payment</p>
+      <p class="value">{% if order.billing_status %}Confirmed{% else %}Pending{% endif %}</p>
+    </div>
+  </div>
+
+  <!-- Items -->
+  <p class="label" style="margin-bottom: 8px;">Items ordered</p>
+  {% for item in order.items.all %}
+  <div class="order-item">
+    <span>{{ item.product_title }} <span style="color:#a1a1aa;">×{{ item.quantity }}</span></span>
+    <span style="font-weight: 600;">£{{ item.line_total }}</span>
+  </div>
+  {% endfor %}
+  <div class="order-total">
+    <span>Total</span>
+    <span>£{{ order.total_paid }}</span>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Shipping address -->
+  <p class="label" style="margin-bottom: 8px;">Shipping to</p>
+  <div class="highlight-box">
+    <p>{{ order.full_name }}</p>
+    <p>{{ order.address_line_1 }}{% if order.address_line_2 %}, {{ order.address_line_2 }}{% endif %}</p>
+    <p>{{ order.city }}{% if order.postcode %}, {{ order.postcode }}{% endif %}</p>
+    <p>{{ order.country }}</p>
+  </div>
+
+  <div style="text-align: center; margin-top: 32px;">
+    <a href="{{ frontend_url }}/account/orders/{{ order.order_number }}" class="btn">View order details</a>
+  </div>
+{% endblock %}

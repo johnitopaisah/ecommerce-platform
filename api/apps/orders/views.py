@@ -1,14 +1,5 @@
 """
 Orders views.
-
-POST   /api/v1/orders/               create order from current basket
-GET    /api/v1/orders/               list current user's paid orders
-GET    /api/v1/orders/<order_number>/ order detail
-POST   /api/v1/orders/<order_number>/cancel/  cancel order
-
-Admin:
-GET    /api/v1/admin/orders/                  all orders
-PUT    /api/v1/admin/orders/<order_number>/status/  update status
 """
 
 from decimal import Decimal
@@ -21,40 +12,32 @@ from drf_spectacular.utils import extend_schema
 
 from apps.basket import service as basket_service
 from apps.core.permissions import IsAdminUser
+from apps.core.email import send_order_confirmation_email
 from .models import Order, OrderItem, OrderStatus
 from .serializers import OrderSerializer, OrderCreateSerializer, OrderStatusUpdateSerializer
 
-
-# ── Customer endpoints ─────────────────────────────────────────────────────────
 
 @extend_schema(tags=['orders'])
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def order_list_create(request):
-    """
-    GET  — list the current user's paid orders.
-    POST — create a new order from the current basket.
-    """
     if request.method == 'GET':
         orders = (
             Order.objects
-            .filter(user=request.user, billing_status=True)
+            .filter(user=request.user)
             .prefetch_related('items')
             .order_by('-created')
         )
         return Response(OrderSerializer(orders, many=True).data)
 
-    # POST — create order
     serializer = OrderCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
 
-    # Prevent duplicate order for the same payment intent
     if Order.objects.filter(order_key=data['order_key']).exists():
         order = Order.objects.get(order_key=data['order_key'])
         return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
 
-    # Pull basket from Redis
     basket_summary = basket_service.get_basket_summary(request)
     if not basket_summary['items']:
         return Response(
@@ -87,6 +70,9 @@ def order_list_create(request):
             quantity=item['qty'],
         )
 
+    # Send HTML order confirmation email
+    send_order_confirmation_email(order)
+
     return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
@@ -94,7 +80,6 @@ def order_list_create(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def order_detail(request, order_number):
-    """Retrieve a single order belonging to the current user."""
     try:
         order = (
             Order.objects
@@ -113,7 +98,6 @@ def order_detail(request, order_number):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def order_cancel(request, order_number):
-    """Cancel a pending order."""
     try:
         order = Order.objects.get(order_number=order_number, user=request.user)
     except Order.DoesNotExist:
@@ -134,10 +118,8 @@ def order_cancel(request, order_number):
     return Response(OrderSerializer(order).data)
 
 
-# ── Shared helper (called by payment webhook) ──────────────────────────────────
-
 def confirm_payment(order_key: str):
-    """Mark an order as paid. Called by the Stripe webhook."""
+    """Mark an order as paid — called by the Stripe webhook."""
     updated = Order.objects.filter(order_key=order_key).update(
         billing_status=True,
         status=OrderStatus.CONFIRMED,
@@ -145,23 +127,17 @@ def confirm_payment(order_key: str):
     return updated > 0
 
 
-# ── Admin endpoints ────────────────────────────────────────────────────────────
-
 @extend_schema(tags=['admin'])
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def admin_order_list(request):
-    """List all orders with optional status filter."""
     orders = Order.objects.prefetch_related('items').select_related('user').order_by('-created')
-
     status_filter = request.query_params.get('status')
     if status_filter:
         orders = orders.filter(status=status_filter)
-
     billing = request.query_params.get('billing_status')
     if billing is not None:
         orders = orders.filter(billing_status=(billing.lower() == 'true'))
-
     return Response(OrderSerializer(orders, many=True).data)
 
 
@@ -169,7 +145,6 @@ def admin_order_list(request):
 @api_view(['PUT'])
 @permission_classes([IsAdminUser])
 def admin_order_status_update(request, order_number):
-    """Update the status of any order."""
     try:
         order = Order.objects.get(order_number=order_number)
     except Order.DoesNotExist:
@@ -177,7 +152,6 @@ def admin_order_status_update(request, order_number):
             {'error': 'not_found', 'detail': 'Order not found.'},
             status=status.HTTP_404_NOT_FOUND,
         )
-
     serializer = OrderStatusUpdateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     order.status = serializer.validated_data['status']
