@@ -53,11 +53,24 @@ class UserSerializer(serializers.ModelSerializer):
 
     full_name = serializers.SerializerMethodField()
 
+    # Explicitly declared so the Country object is serialized as a plain
+    # string (ISO 3166-1 alpha-2 code e.g. "US", "GB") instead of raising
+    # TypeError: Object of type Country is not JSON serializable
+    country = serializers.CharField(
+        source='country.code',
+        default='',
+        allow_blank=True,
+        read_only=True,
+    )
+
+    # Also expose the full country name as a bonus field for the UI
+    country_name = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = (
             'id', 'email', 'user_name', 'first_name', 'last_name', 'full_name',
-            'about', 'country', 'phone_number', 'postcode',
+            'about', 'country', 'country_name', 'phone_number', 'postcode',
             'address_line_1', 'address_line_2', 'town_city',
             'is_active', 'is_staff', 'created', 'updated',
         )
@@ -66,12 +79,30 @@ class UserSerializer(serializers.ModelSerializer):
     def get_full_name(self, obj):
         return obj.get_full_name()
 
+    def get_country_name(self, obj):
+        # obj.country is a Country object — .name gives the full name e.g. "United Kingdom"
+        # Falls back to empty string if country is not set
+        try:
+            return obj.country.name or ''
+        except Exception:
+            return ''
+
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     """
     Allows updating profile fields.
     Email and username are read-only after registration.
+    country accepts an ISO 3166-1 alpha-2 code e.g. "US", "GB".
     """
+
+    # Accept the country as a plain string code on write —
+    # django-countries handles the conversion internally.
+    country = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=2,
+        help_text='ISO 3166-1 alpha-2 country code e.g. GB, US, NG',
+    )
 
     class Meta:
         model = User
@@ -80,6 +111,16 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             'country', 'phone_number', 'postcode',
             'address_line_1', 'address_line_2', 'town_city',
         )
+
+    def validate_country(self, value):
+        if not value:
+            return value
+        from django_countries import countries
+        if value.upper() not in dict(countries):
+            raise serializers.ValidationError(
+                f'"{value}" is not a valid ISO 3166-1 alpha-2 country code.'
+            )
+        return value.upper()
 
 
 class ChangePasswordSerializer(serializers.Serializer):
