@@ -1,6 +1,18 @@
 import api from "@/lib/api";
 import type { AuthTokens, User, Product, Category, Order, AdminStats } from "@/types";
 
+// Write payload types — prices are numbers when sending to the API
+// (Django accepts both; the response always returns strings)
+export interface ProductWritePayload {
+  title: string;
+  description?: string;
+  category_id: number;
+  price: number;
+  discount_price?: number;
+  stock_quantity: number;
+  is_active: boolean;
+}
+
 export const authApi = {
   login: (email: string, password: string) =>
     api.post<AuthTokens>("/auth/token/", { email, password }),
@@ -15,9 +27,9 @@ export const statsApi = {
 export const productsApi = {
   list: () => api.get<Product[]>("/admin/products/"),
   detail: (slug: string) => api.get<Product>(`/admin/products/${slug}/`),
-  create: (data: Partial<Product> & { category_id: number }) =>
+  create: (data: ProductWritePayload) =>
     api.post<Product>("/admin/products/", data),
-  update: (slug: string, data: Partial<Product>) =>
+  update: (slug: string, data: Partial<ProductWritePayload>) =>
     api.patch<Product>(`/admin/products/${slug}/`, data),
   delete: (slug: string) => api.delete(`/admin/products/${slug}/`),
 };

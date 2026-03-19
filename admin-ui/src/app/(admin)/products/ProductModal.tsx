@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { X } from "lucide-react";
 import { productsApi } from "@/lib/services";
+import type { ProductWritePayload } from "@/lib/services";
 import type { Product, Category } from "@/types";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -65,7 +66,7 @@ export default function ProductModal({ product, categories, onSave, onClose }: P
   }, [product, reset]);
 
   const onSubmit = async (data: FormData) => {
-    const payload = {
+    const payload: ProductWritePayload = {
       title: data.title,
       description: data.description,
       category_id: data.category_id,
@@ -76,9 +77,9 @@ export default function ProductModal({ product, categories, onSave, onClose }: P
     };
 
     if (isEdit && product) {
-      await productsApi.update(product.slug, payload as Parameters<typeof productsApi.update>[1]);
+      await productsApi.update(product.slug, payload);
     } else {
-      await productsApi.create(payload as Parameters<typeof productsApi.create>[0]);
+      await productsApi.create(payload);
     }
     onSave();
   };
