@@ -51,6 +51,9 @@ export default function DashboardPage() {
     { name: "Out of stock", value: stats.products.out_of_stock, color: "#ef4444" },
   ];
 
+  const pieLabel = ({ name, value }: { name?: string; value?: number }) =>
+    name && value != null ? `${name}: ${value}` : "";
+
   return (
     <div className="space-y-6">
       <div>
@@ -130,10 +133,13 @@ export default function DashboardPage() {
             <PieChart>
               <Pie
                 data={productData}
-                cx="50%" cy="50%"
-                innerRadius={60} outerRadius={90}
-                paddingAngle={3} dataKey="value"
-                label={({ name, value }: { name: string; value: number }) => `${name}: ${value}`}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={90}
+                paddingAngle={3}
+                dataKey="value"
+                label={pieLabel}
                 labelLine={false}
               >
                 {productData.map((entry, index) => (
@@ -141,7 +147,8 @@ export default function DashboardPage() {
                 ))}
               </Pie>
               <Legend
-                iconType="circle" iconSize={8}
+                iconType="circle"
+                iconSize={8}
                 formatter={(value: string) => (
                   <span style={{ fontSize: 12, color: "#374151" }}>{value}</span>
                 )}
@@ -169,8 +176,8 @@ export default function DashboardPage() {
           </div>
         </div>
         <p className="text-xs text-gray-400 mt-4">
-          "All orders" includes pending orders awaiting payment.
-          "Stripe confirmed" shows only webhook-confirmed payments.
+          &ldquo;All orders&rdquo; includes pending orders awaiting payment.{" "}
+          &ldquo;Stripe confirmed&rdquo; shows only webhook-confirmed payments.
         </p>
       </div>
     </div>

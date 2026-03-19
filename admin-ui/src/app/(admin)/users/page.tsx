@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Search, CheckCircle, XCircle, UserX } from "lucide-react";
 import { usersApi } from "@/lib/services";
 import type { User } from "@/types";
 import { formatDate } from "@/lib/utils";
-import type { AxiosResponse } from "axios";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -13,23 +12,27 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
 
-  const load = () => {
-    const params: Record<string, string> = {};
-    if (filter === "active") params.is_active = "true";
-    if (filter === "inactive") params.is_active = "false";
-    if (search) params.search = search;
+  const fetchUsers = useCallback(async (currentFilter: string, currentSearch: string) => {
+    setLoading(true);
+    try {
+      const params: Record<string, string> = {};
+      if (currentFilter === "active") params.is_active = "true";
+      if (currentFilter === "inactive") params.is_active = "false";
+      if (currentSearch) params.search = currentSearch;
+      const res = await usersApi.list(params);
+      setUsers(res.data);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    usersApi.list(params)
-      .then((r: AxiosResponse<User[]>) => setUsers(r.data))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { setLoading(true); load(); }, [filter]);
+  useEffect(() => {
+    void fetchUsers(filter, "");
+  }, [filter, fetchUsers]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    load();
+    void fetchUsers(filter, search);
   };
 
   const handleDeactivate = async (user: User) => {
