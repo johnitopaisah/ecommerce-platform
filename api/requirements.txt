@@ -6,7 +6,7 @@ djangorestframework==3.15.2
 psycopg2-binary==2.9.10
 dj-database-url==2.3.0
 
-# Cache / Sessions / Broker
+# Cache / Sessions
 redis==5.2.1
 django-redis==5.4.0
 
@@ -19,7 +19,7 @@ django-cors-headers==4.6.0
 # Environment variables
 python-dotenv==1.0.1
 
-# Storage (S3 - wired up in production settings, not active yet)
+# Storage (S3)
 django-storages==1.14.4
 boto3==1.35.85
 
@@ -38,12 +38,12 @@ drf-spectacular==0.27.2
 # Payment
 stripe==11.3.0
 
-# Async tasks (celery wired up later, installed now)
+# Async tasks
 celery==5.4.0
-django-celery-beat==2.7.0
+django-celery-beat==2.6.0
 
 # WSGI server
 gunicorn==23.0.0
 
-# Code quality
+# Code quality (also installed separately in CI but pinned here for local dev)
 flake8==7.1.1
