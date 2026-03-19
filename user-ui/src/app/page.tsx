@@ -4,6 +4,8 @@ import ProductGrid from "@/components/products/ProductGrid";
 import { Button } from "@/components/ui/Button";
 import type { Category, Product } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 async function getHomeData() {
   try {
     const [categoriesRes, productsRes] = await Promise.all([
@@ -36,9 +38,7 @@ export default async function HomePage() {
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
             <Link href="/products">
-              <Button size="lg" variant="secondary">
-                Shop now
-              </Button>
+              <Button size="lg" variant="secondary">Shop now</Button>
             </Link>
             <Link href="/categories">
               <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
@@ -50,25 +50,27 @@ export default async function HomePage() {
       </section>
 
       {/* Categories */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Shop by category</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-          {categories.map((cat) => (
-            <Link
-              key={cat.id}
-              href={`/categories/${cat.slug}`}
-              className="group bg-white border border-gray-200 rounded-xl p-4 text-center hover:border-gray-900 hover:shadow-sm transition-all"
-            >
-              <p className="font-semibold text-gray-900 text-sm group-hover:text-gray-700">
-                {cat.name}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {cat.product_count} {cat.product_count === 1 ? "item" : "items"}
-              </p>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {categories.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Shop by category</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            {categories.map((cat) => (
+              <Link
+                key={cat.id}
+                href={`/categories/${cat.slug}`}
+                className="group bg-white border border-gray-200 rounded-xl p-4 text-center hover:border-gray-900 hover:shadow-sm transition-all"
+              >
+                <p className="font-semibold text-gray-900 text-sm group-hover:text-gray-700">
+                  {cat.name}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {cat.product_count} {cat.product_count === 1 ? "item" : "items"}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* New arrivals */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
