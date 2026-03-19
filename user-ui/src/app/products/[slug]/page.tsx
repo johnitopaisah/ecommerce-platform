@@ -3,6 +3,8 @@ import { productsApi } from "@/lib/services";
 import ProductDetailClient from "./ProductDetailClient";
 import type { Product } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProductDetailPage({
   params,
 }: {
