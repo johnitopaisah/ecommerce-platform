@@ -169,8 +169,8 @@ export default function DashboardPage() {
           </div>
         </div>
         <p className="text-xs text-gray-400 mt-4">
-          "All orders" includes pending orders awaiting payment.
-          "Stripe confirmed" shows only webhook-confirmed payments.
+          &ldquo;All orders&rdquo; includes pending orders awaiting payment.{" "}
+          &ldquo;Stripe confirmed&rdquo; shows only webhook-confirmed payments.
         </p>
       </div>
     </div>

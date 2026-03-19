@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Search, ChevronRight } from "lucide-react";
 import { ordersApi } from "@/lib/services";
 import type { Order } from "@/types";
 import { formatPrice, formatDate, getOrderStatusColor } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import OrderDrawer from "./OrderDrawer";
-import type { AxiosResponse } from "axios";
 
 const STATUS_OPTIONS = [
   { label: "All", value: "" },
@@ -26,18 +25,23 @@ export default function OrdersPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Order | null>(null);
 
-  const load = (status = statusFilter) => {
+  const fetchOrders = useCallback(async (status: string) => {
     setLoading(true);
-    ordersApi.list(status ? { status } : undefined)
-      .then((r: AxiosResponse<Order[]>) => setOrders(r.data))
-      .finally(() => setLoading(false));
-  };
+    try {
+      const res = await ordersApi.list(status ? { status } : undefined);
+      setOrders(res.data);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  useEffect(() => { load(); }, [statusFilter]);
+  useEffect(() => {
+    void fetchOrders(statusFilter);
+  }, [statusFilter, fetchOrders]);
 
   const handleStatusChange = async (order: Order, newStatus: string) => {
     await ordersApi.updateStatus(order.order_number, newStatus);
-    load();
+    void fetchOrders(statusFilter);
     setSelected(null);
   };
 
@@ -111,9 +115,7 @@ export default function OrdersPage() {
                       <p className="text-xs text-gray-400">{order.email}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge className={getOrderStatusColor(order.status)}>
-                        {order.status_display}
-                      </Badge>
+                      <Badge className={getOrderStatusColor(order.status)}>{order.status_display}</Badge>
                     </td>
                     <td className="px-4 py-3">
                       {order.billing_status ? (
@@ -143,7 +145,7 @@ export default function OrdersPage() {
           order={selected}
           onClose={() => setSelected(null)}
           onStatusChange={handleStatusChange}
-          onRefresh={() => { load(); setSelected(null); }}
+          onRefresh={() => { void fetchOrders(statusFilter); setSelected(null); }}
         />
       )}
     </div>
