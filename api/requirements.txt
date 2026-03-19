@@ -3,7 +3,7 @@ Django==5.1.2
 djangorestframework==3.15.2
 
 # Database
-psycopg2-binary==2.9.10
+psycopg2-binary==2.9.11
 dj-database-url==2.3.0
 
 # Cache / Sessions
