@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { productsApi } from "@/lib/services";
 import ProductDetailClient from "./ProductDetailClient";
+import type { Product } from "@/types";
 
 export default async function ProductDetailPage({
   params,
@@ -9,10 +10,16 @@ export default async function ProductDetailPage({
 }) {
   const { slug } = await params;
 
+  let product: Product | null = null;
+
   try {
     const res = await productsApi.detail(slug);
-    return <ProductDetailClient product={res.data} />;
+    product = res.data;
   } catch {
     notFound();
   }
+
+  if (!product) notFound();
+
+  return <ProductDetailClient product={product} />;
 }
