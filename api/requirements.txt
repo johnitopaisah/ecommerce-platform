@@ -40,7 +40,7 @@ stripe==11.3.0
 
 # Async tasks
 celery==5.4.0
-django-celery-beat==2.6.0
+django-celery-beat==2.9.0
 
 # WSGI server
 gunicorn==23.0.0
