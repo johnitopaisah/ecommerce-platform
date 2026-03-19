@@ -1,0 +1,95 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: api-migrate
+  namespace: ecommerce
+  labels:
+    app: shopnow
+    component: api
+    job-type: migrate
+spec:
+  # Job will retry up to 3 times if it fails
+  backoffLimit: 3
+  # Auto-delete the job 10 minutes after it completes
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: shopnow
+        component: api
+        job-type: migrate
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets:
+        - name: dockerhub-secret
+      initContainers:
+        # Wait for postgres to be fully ready before running migrations
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL..."
+              until pg_isready -h postgres -p 5432 -U ecom_user; do
+                echo "PostgreSQL not ready — retrying in 3s"
+                sleep 3
+              done
+              echo "PostgreSQL is ready."
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: DB_PASSWORD
+      containers:
+        - name: migrate
+          image: johnitopaisah/ecommerce-api:v0.1.0
+          command:
+            - sh
+            - -c
+            - |
+              echo "Running migrations..."
+              python manage.py migrate --noinput
+              echo "Collecting static files..."
+              python manage.py collectstatic --noinput
+              echo "Done."
+          envFrom:
+            - configMapRef:
+                name: api-config
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: SECRET_KEY
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: DB_PASSWORD
+            - name: EMAIL_HOST_USER
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: EMAIL_HOST_USER
+            - name: EMAIL_HOST_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: EMAIL_HOST_PASSWORD
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: STRIPE_SECRET_KEY
+            - name: STRIPE_PUBLISHABLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: STRIPE_PUBLISHABLE_KEY
+            - name: STRIPE_ENDPOINT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: STRIPE_ENDPOINT_SECRET

@@ -1,0 +1,77 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shopnow-ingress
+  namespace: ecommerce
+  labels:
+    app: shopnow
+  annotations:
+    # Use the nginx ingress controller
+    kubernetes.io/ingress.class: "nginx"
+    # Increase body size limit for product image uploads (default is 1m)
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    # Timeouts for long-running Django requests
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    # Pass real client IP to Django
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+    # Rewrite rules for admin-ui path stripping
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  rules:
+    - host: shopnow.local
+      http:
+        paths:
+          # ── Django API ────────────────────────────────────────────────────
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8000
+
+          # Django admin panel (built-in)
+          - path: /django-admin/
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8000
+
+          # Media files served by Django in dev
+          - path: /media/
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8000
+
+          # Static files
+          - path: /static/
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8000
+
+          # ── Admin UI ──────────────────────────────────────────────────────
+          - path: /admin-panel/
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-ui
+                port:
+                  number: 3001
+
+          # ── User UI (catch-all, must be last) ─────────────────────────────
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: user-ui
+                port:
+                  number: 3000

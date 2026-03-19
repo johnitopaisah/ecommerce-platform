@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: ecommerce
+  labels:
+    app: shopnow
+    component: api
+data:
+  # Django settings
+  DJANGO_SETTINGS_MODULE: "config.settings.production"
+  DEBUG: "False"
+  ALLOWED_HOSTS: "shopnow.local,localhost,127.0.0.1"
+
+  # Database connection (host is the postgres Service name in this namespace)
+  DATABASE_URL: "postgres://ecom_user:ecom_pass@postgres:5432/ecommerce_db"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+
+  # Redis connection (host is the redis Service name)
+  REDIS_URL: "redis://redis:6379/0"
+
+  # CORS — allow both UIs
+  CORS_ALLOWED_ORIGINS: "http://shopnow.local,http://localhost"
+
+  # JWT lifetimes
+  JWT_ACCESS_TOKEN_LIFETIME_MINUTES: "60"
+  JWT_REFRESH_TOKEN_LIFETIME_DAYS: "7"
+
+  # Email
+  EMAIL_BACKEND: "django.core.mail.backends.smtp.EmailBackend"
+  EMAIL_HOST: "smtp.gmail.com"
+  EMAIL_PORT: "587"
+  EMAIL_USE_TLS: "True"
+  EMAIL_USE_SSL: "False"
+  DEFAULT_FROM_EMAIL: "ShopNow <johnitopaisah@gmail.com>"
+
+  # Front-end URL (used in email links)
+  FRONTEND_URL: "http://shopnow.local"
+
+  # Gunicorn tuning
+  GUNICORN_WORKERS: "3"
+  GUNICORN_THREADS: "2"
+  GUNICORN_TIMEOUT: "120"
+
+  # S3 (disabled for local/minikube)
+  USE_S3: "False"
