@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useBasketStore } from "@/store/basketStore";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 
-export default function ActivatedPage() {
+// Inner component that uses useSearchParams — must be inside Suspense
+function ActivatedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setTokens, fetchMe } = useAuthStore();
@@ -86,5 +87,17 @@ export default function ActivatedPage() {
         <p className="text-xs text-gray-400">Redirecting to your dashboard…</p>
       </div>
     </div>
+  );
+}
+
+export default function ActivatedPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+      </div>
+    }>
+      <ActivatedContent />
+    </Suspense>
   );
 }
