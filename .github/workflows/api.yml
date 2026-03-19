@@ -7,13 +7,18 @@ on:
         description: "Release tag to build and push (e.g. v1.0.0)"
         required: true
         type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to build and push (e.g. v1.0.0)"
+        required: true
+        type: string
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/ecommerce-api
   PYTHON_VERSION: "3.13"
 
 jobs:
-  # ── Job 1: Run tests ──────────────────────────────────────────────────────
   test:
     name: Test API
     runs-on: ubuntu-latest
@@ -112,7 +117,6 @@ jobs:
           flags: api
           fail_ci_if_error: false
 
-  # ── Job 2: Build, scan & push ─────────────────────────────────────────────
   build-and-push:
     name: Build, scan & push
     runs-on: ubuntu-latest

@@ -7,13 +7,18 @@ on:
         description: "Release tag to build and push (e.g. v1.0.0)"
         required: true
         type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to build and push (e.g. v1.0.0)"
+        required: true
+        type: string
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/ecommerce-admin-ui
   NODE_VERSION: "20"
 
 jobs:
-  # ── Job 1: Lint & build check ─────────────────────────────────────────────
   test:
     name: Lint & build check
     runs-on: ubuntu-latest
@@ -45,7 +50,6 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
         run: npm run build
 
-  # ── Job 2: Build, scan & push ─────────────────────────────────────────────
   build-and-push:
     name: Build, scan & push
     runs-on: ubuntu-latest
