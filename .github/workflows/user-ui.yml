@@ -1,16 +1,18 @@
-name: User UI — Test, Build, Scan & Push
+name: User UI — Build, Scan & Push
 
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - "user-ui/**"
-      - ".github/workflows/user-ui.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "user-ui/**"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and push (e.g. v1.0.0)"
+        required: true
+        type: string
   workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to build and push (e.g. v1.0.0)"
+        required: true
+        type: string
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/ecommerce-user-ui
@@ -22,8 +24,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout tag ${{ inputs.tag }}
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - name: Set up Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
@@ -51,11 +55,20 @@ jobs:
     name: Build, scan & push
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
 
     steps:
-      - name: Checkout code
+      - name: Checkout tag ${{ inputs.tag }}
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Validate tag format
+        run: |
+          if [[ ! "${{ inputs.tag }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: Tag must follow semver format: v1.2.3 (got '${{ inputs.tag }}')"
+            exit 1
+          fi
+          echo "Tag ${{ inputs.tag }} is valid"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -66,16 +79,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix=sha-,format=short
-            type=ref,event=branch
-
       - name: Build image (for scanning)
         uses: docker/build-push-action@v5
         with:
@@ -83,7 +86,7 @@ jobs:
           file: ./user-ui/Dockerfile
           push: false
           load: true
-          tags: ${{ env.IMAGE_NAME }}:scan
+          tags: ${{ env.IMAGE_NAME }}:${{ inputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -93,7 +96,7 @@ jobs:
       - name: Scan with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:scan
+          image-ref: ${{ env.IMAGE_NAME }}:${{ inputs.tag }}
           format: table
           exit-code: 0
           ignore-unfixed: true
@@ -105,9 +108,9 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: trivy-user-ui-report
+          name: trivy-user-ui-report-${{ inputs.tag }}
           path: trivy-user-ui-report.txt
-          retention-days: 30
+          retention-days: 90
 
       - name: Print scan summary
         if: always()
@@ -119,10 +122,21 @@ jobs:
           context: ./user-ui
           file: ./user-ui/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ inputs.tag }}
+            ${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
             NEXT_PUBLIC_API_URL=http://localhost/api/v1
             NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+
+      - name: Summary
+        run: |
+          echo "## User UI Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | \`${{ env.IMAGE_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | \`${{ inputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY

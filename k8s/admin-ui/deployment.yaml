@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-ui
+  namespace: ecommerce
+  labels:
+    app: shopnow
+    component: admin-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shopnow
+      component: admin-ui
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: shopnow
+        component: admin-ui
+    spec:
+      imagePullSecrets:
+        - name: dockerhub-secret
+      initContainers:
+        - name: wait-for-api
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for API to be ready..."
+              until wget -qO- http://api:8000/api/v1/health/ > /dev/null 2>&1; do
+                echo "API not ready — retrying in 3s"
+                sleep 3
+              done
+              echo "API is ready."
+      containers:
+        - name: admin-ui
+          image: johnitopaisah/ecommerce-admin-ui:v0.1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3001
+              name: http
+          env:
+            - name: PORT
+              value: "3001"
+            - name: NODE_ENV
+              value: "production"
+            - name: NEXT_PUBLIC_API_URL
+              value: "http://shopnow.local/api/v1"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3001
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
