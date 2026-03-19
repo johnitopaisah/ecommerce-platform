@@ -1,0 +1,34 @@
+version: 2
+
+updates:
+  # Keep GitHub Actions up to date
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+
+  # Keep Python dependencies up to date
+  - package-ecosystem: pip
+    directory: /api
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps(api)"
+
+  # Keep user-ui npm dependencies up to date
+  - package-ecosystem: npm
+    directory: /user-ui
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps(user-ui)"
+
+  # Keep admin-ui npm dependencies up to date
+  - package-ecosystem: npm
+    directory: /admin-ui
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps(admin-ui)"

@@ -1,5 +1,5 @@
 """
-Store serializers — Category, Product list, Product detail, ProductImage.
+Store serializers — Category, Product, ProductImage.
 """
 
 from rest_framework import serializers
@@ -12,6 +12,7 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ('id', 'name', 'slug', 'description', 'is_active', 'product_count')
+        read_only_fields = ('id', 'slug')
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -21,85 +22,76 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
 
 class ProductListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for list views — no full description."""
+    """Lightweight serializer for list views — no heavy fields."""
     category_name = serializers.CharField(source='category.name', read_only=True)
-    primary_image = serializers.SerializerMethodField()
-    in_stock = serializers.SerializerMethodField()
+    in_stock = serializers.BooleanField(read_only=True)
+    effective_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True
+    )
 
     class Meta:
         model = Product
         fields = (
-            'id', 'title', 'slug', 'category', 'category_name',
-            'price', 'stock_quantity', 'in_stock', 'primary_image',
-            'created',
+            'id', 'title', 'slug', 'category_name',
+            'price', 'discount_price', 'effective_price',
+            'image', 'in_stock', 'stock_quantity', 'created',
         )
-
-    def get_primary_image(self, obj):
-        primary = obj.images.filter(is_primary=True).first() or obj.images.first()
-        if primary:
-            request = self.context.get('request')
-            return request.build_absolute_uri(primary.image.url) if request else primary.image.url
-        return None
-
-    def get_in_stock(self, obj):
-        return obj.in_stock
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
-    """Full serializer for detail view — includes images and description."""
+    """Full serializer for detail view — includes images and category."""
     category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        source='category',
+        write_only=True,
+    )
     images = ProductImageSerializer(many=True, read_only=True)
-    in_stock = serializers.SerializerMethodField()
+    in_stock = serializers.BooleanField(read_only=True)
+    effective_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True
+    )
+    created_by = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = Product
         fields = (
-            'id', 'title', 'slug', 'category', 'description',
-            'price', 'stock_quantity', 'in_stock', 'images',
+            'id', 'title', 'slug', 'description',
+            'category', 'category_id',
+            'price', 'discount_price', 'effective_price',
+            'image', 'images',
+            'stock_quantity', 'in_stock',
+            'is_active', 'created_by',
             'created', 'updated',
         )
+        read_only_fields = ('id', 'slug', 'created', 'updated', 'created_by')
 
-    def get_in_stock(self, obj):
-        return obj.in_stock
-
-
-# ── Admin serializers (write-capable) ─────────────────────────────────────────
 
 class ProductWriteSerializer(serializers.ModelSerializer):
-    """Used by admin endpoints to create and update products."""
+    """Used by admin endpoints to create/update products."""
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        source='category',
+    )
 
     class Meta:
         model = Product
         fields = (
-            'id', 'title', 'slug', 'category', 'description',
-            'price', 'stock_quantity', 'is_active',
+            'title', 'description', 'category_id',
+            'price', 'discount_price',
+            'image', 'stock_quantity', 'is_active',
         )
-        read_only_fields = ('id',)
 
     def validate_price(self, value):
         if value <= 0:
             raise serializers.ValidationError('Price must be greater than zero.')
         return value
 
-    def validate_slug(self, value):
-        qs = Product.objects.filter(slug=value)
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise serializers.ValidationError('A product with this slug already exists.')
-        return value
-
-
-class CategoryWriteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ('id', 'name', 'slug', 'description', 'is_active')
-        read_only_fields = ('id',)
-
-    def validate_slug(self, value):
-        qs = Category.objects.filter(slug=value)
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise serializers.ValidationError('A category with this slug already exists.')
-        return value
+    def validate(self, attrs):
+        discount = attrs.get('discount_price')
+        price = attrs.get('price', getattr(self.instance, 'price', None))
+        if discount and price and discount >= price:
+            raise serializers.ValidationError(
+                {'discount_price': 'Discount price must be less than the regular price.'}
+            )
+        return attrs

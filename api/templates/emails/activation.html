@@ -1,0 +1,17 @@
+{% extends "emails/base.html" %}
+{% block subject %}Activate your ShopNow account{% endblock %}
+{% block content %}
+  <h2>Welcome to ShopNow, {{ user.first_name|default:user.user_name }}!</h2>
+  <p>Thanks for signing up. Please confirm your email address to activate your account and start shopping.</p>
+
+  <div style="text-align: center; margin: 32px 0;">
+    <a href="{{ activation_url }}" class="btn">Activate my account</a>
+  </div>
+
+  <p class="small">Or copy and paste this link into your browser:</p>
+  <p class="small"><a href="{{ activation_url }}" class="link">{{ activation_url }}</a></p>
+
+  <hr class="divider">
+
+  <p class="small">This link expires in <strong>24 hours</strong>. If you did not create an account, you can safely ignore this email.</p>
+{% endblock %}

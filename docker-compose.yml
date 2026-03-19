@@ -1,19 +1,17 @@
 version: '3.9'
 
-# ── Shared network ─────────────────────────────────────────────────────────────
 networks:
   ecom_net:
     driver: bridge
 
-# ── Named volumes ──────────────────────────────────────────────────────────────
 volumes:
   postgres_data:
   redis_data:
   media_data:
+  static_data:
 
 services:
 
-  # ── PostgreSQL ───────────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     container_name: ecom_db
@@ -24,8 +22,6 @@ services:
       POSTGRES_PASSWORD: ecom_pass
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"          # exposed so you can connect with TablePlus / psql locally
     networks:
       - ecom_net
     healthcheck:
@@ -34,7 +30,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Redis ────────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: ecom_redis
@@ -42,8 +37,6 @@ services:
     command: redis-server --save 60 1 --loglevel warning
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"          # exposed so you can inspect with redis-cli locally
     networks:
       - ecom_net
     healthcheck:
@@ -52,31 +45,72 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Django API ───────────────────────────────────────────────────────────────
-  # NOTE: The Dockerfile for `api` is built in Phase 6.
-  # For Phase 1, run the Django dev server OUTSIDE Docker (see README).
-  # This service block is here ready for Phase 6 — comment it out for now.
-  #
-  # api:
-  #   build:
-  #     context: ./api
-  #     dockerfile: Dockerfile
-  #   container_name: ecom_api
-  #   restart: unless-stopped
-  #   env_file: ./api/.env
-  #   environment:
-  #     DJANGO_SETTINGS_MODULE: config.settings.development
-  #     DATABASE_URL: postgres://ecom_user:ecom_pass@db:5432/ecommerce_db
-  #     REDIS_URL: redis://redis:6379/0
-  #   volumes:
-  #     - ./api:/app
-  #     - media_data:/app/media
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - ecom_net
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: ecom_api
+    restart: unless-stopped
+    env_file:
+      - ./api/.env.docker
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecom_net
+
+  user-ui:
+    build:
+      context: ./user-ui
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost/api/v1
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_replace_me
+    container_name: ecom_user_ui
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+    depends_on:
+      - api
+    networks:
+      - ecom_net
+
+  admin-ui:
+    build:
+      context: ./admin-ui
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost/api/v1
+    container_name: ecom_admin_ui
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+    depends_on:
+      - api
+    networks:
+      - ecom_net
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: ecom_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - media_data:/app/media:ro
+      - static_data:/app/staticfiles:ro
+    depends_on:
+      - api
+      - user-ui
+      - admin-ui
+    networks:
+      - ecom_net

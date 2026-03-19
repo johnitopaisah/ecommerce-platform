@@ -1,0 +1,84 @@
+name: Full Platform CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: Build all services regardless of changes
+        type: boolean
+        default: false
+
+jobs:
+  # ── Detect which services changed ──────────────────────────────────────────
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      user-ui: ${{ steps.filter.outputs.user-ui }}
+      admin-ui: ${{ steps.filter.outputs.admin-ui }}
+      nginx: ${{ steps.filter.outputs.nginx }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+            user-ui:
+              - 'user-ui/**'
+            admin-ui:
+              - 'admin-ui/**'
+            nginx:
+              - 'nginx/**'
+
+  # ── API ────────────────────────────────────────────────────────────────────
+  api:
+    name: API Pipeline
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || github.event.inputs.force_all == 'true'
+    uses: ./.github/workflows/api.yml
+    secrets: inherit
+
+  # ── User UI ────────────────────────────────────────────────────────────────
+  user-ui:
+    name: User UI Pipeline
+    needs: changes
+    if: needs.changes.outputs.user-ui == 'true' || github.event.inputs.force_all == 'true'
+    uses: ./.github/workflows/user-ui.yml
+    secrets: inherit
+
+  # ── Admin UI ───────────────────────────────────────────────────────────────
+  admin-ui:
+    name: Admin UI Pipeline
+    needs: changes
+    if: needs.changes.outputs.admin-ui == 'true' || github.event.inputs.force_all == 'true'
+    uses: ./.github/workflows/admin-ui.yml
+    secrets: inherit
+
+  # ── Final status gate ──────────────────────────────────────────────────────
+  # This job is the single required status check in branch protection rules.
+  # It passes as long as all triggered pipelines pass.
+  status:
+    name: Pipeline status
+    runs-on: ubuntu-latest
+    needs: [api, user-ui, admin-ui]
+    if: always()
+    steps:
+      - name: Check all pipelines passed
+        run: |
+          if [[ "${{ needs.api.result }}" == "failure" || \
+                "${{ needs.user-ui.result }}" == "failure" || \
+                "${{ needs.admin-ui.result }}" == "failure" ]]; then
+            echo "One or more pipelines failed."
+            exit 1
+          fi
+          echo "All pipelines passed or were skipped."
