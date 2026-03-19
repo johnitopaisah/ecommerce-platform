@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { LayoutDashboard, ShoppingBag, User, LogOut } from "lucide-react";
 
@@ -17,24 +17,20 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, user, logout, _hasHydrated } = useAuthStore();
-  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (!_hasHydrated) return;
-    // Mark that we've done the auth check
-    setChecked(true);
-    if (!isAuthenticated) {
+    if (_hasHydrated && !isAuthenticated) {
       router.replace(`/login?next=${pathname}`);
     }
-  }, [_hasHydrated, isAuthenticated]);
+  }, [_hasHydrated, isAuthenticated, pathname, router]);
 
   const handleLogout = async () => {
     await logout();
     router.push("/");
   };
 
-  // Show skeleton while waiting for hydration check
-  if (!checked) {
+  // Skeleton while hydrating from localStorage
+  if (!_hasHydrated) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="flex flex-col md:flex-row gap-8">
@@ -50,13 +46,11 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     );
   }
 
-  // After check — not logged in, redirect is happening
   if (!isAuthenticated) return null;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="flex flex-col md:flex-row gap-8">
-        {/* Sidebar */}
         <aside className="md:w-56 shrink-0">
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="px-4 py-4 bg-gray-50 border-b border-gray-200">
@@ -67,9 +61,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             </div>
             <nav className="py-2">
               {NAV.map(({ href, label, icon: Icon, exact }) => {
-                const active = exact
-                  ? pathname === href
-                  : pathname.startsWith(href);
+                const active = exact ? pathname === href : pathname.startsWith(href);
                 return (
                   <Link
                     key={href}
@@ -96,8 +88,6 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             </nav>
           </div>
         </aside>
-
-        {/* Content */}
         <div className="flex-1 min-w-0">{children}</div>
       </div>
     </div>

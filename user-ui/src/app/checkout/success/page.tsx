@@ -12,7 +12,7 @@ export default function CheckoutSuccessPage() {
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Order placed!</h1>
         <p className="text-gray-500 mb-8">
-          Thank you for your order. We'll send a confirmation to your email shortly.
+          Thank you for your order. We&apos;ll send a confirmation to your email shortly.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href="/account/orders">

@@ -15,39 +15,29 @@ export default function ActivatedPage() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
 
   useEffect(() => {
-    const access = searchParams.get("access");
-    const refresh = searchParams.get("refresh");
-
-    if (!access || !refresh) {
-      setStatus("error");
-      return;
-    }
-
     const activate = async () => {
+      const access = searchParams.get("access");
+      const refresh = searchParams.get("refresh");
+
+      if (!access || !refresh) {
+        setStatus("error");
+        return;
+      }
+
       try {
-        // Store the JWT tokens from the activation redirect
         setTokens(access, refresh);
-
-        // Set the auth cookie for the proxy middleware
         document.cookie = "is_authenticated=1; path=/; max-age=604800; SameSite=Lax";
-
-        // Fetch the user profile
         await fetchMe();
-
-        // Merge any anonymous basket
         await mergeBasket();
-
         setStatus("success");
-
-        // Redirect to account dashboard after a short delay
         setTimeout(() => router.push("/account"), 2000);
       } catch {
         setStatus("error");
       }
     };
 
-    activate();
-  }, []);
+    void activate();
+  }, [fetchMe, mergeBasket, router, searchParams, setTokens]);
 
   if (status === "loading") {
     return (
@@ -91,7 +81,7 @@ export default function ActivatedPage() {
         </div>
         <h1 className="text-xl font-bold text-gray-900 mb-2">Account activated!</h1>
         <p className="text-gray-500 text-sm mb-2">
-          Welcome to ShopNow. You're now logged in.
+          Welcome to ShopNow. You&apos;re now logged in.
         </p>
         <p className="text-xs text-gray-400">Redirecting to your dashboard…</p>
       </div>

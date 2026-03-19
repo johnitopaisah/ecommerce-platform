@@ -1,11 +1,10 @@
 import { create } from "zustand";
-import type { Basket, BasketItem } from "@/types";
+import type { Basket } from "@/types";
 import { basketApi } from "@/lib/services";
 
 interface BasketState {
   basket: Basket;
   isLoading: boolean;
-
   fetchBasket: () => Promise<void>;
   addItem: (product_id: number, qty: number) => Promise<void>;
   updateItem: (product_id: number, qty: number) => Promise<void>;
@@ -77,7 +76,7 @@ export const useBasketStore = create<BasketState>()((set) => ({
       const { data } = await basketApi.merge();
       set({ basket: data });
     } catch {
-      // Non-critical — silently ignore
+      // Non-critical
     }
   },
 }));

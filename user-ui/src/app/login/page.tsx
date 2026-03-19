@@ -17,6 +17,10 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+function setAuthCookie() {
+  document.cookie = "is_authenticated=1; path=/; max-age=604800; SameSite=Lax";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -24,33 +28,21 @@ export default function LoginPage() {
   const { login, isLoading } = useAuthStore();
   const { mergeBasket } = useBasketStore();
 
-  const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors },
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const { register, handleSubmit, setError, formState: { errors } } =
+    useForm<FormData>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (data: FormData) => {
     try {
       await login(data.email, data.password);
-
-      // Set cookie BEFORE redirecting so the proxy reads it correctly
-      document.cookie = "is_authenticated=1; path=/; max-age=604800; SameSite=Lax";
-
-      // Merge anonymous basket into user basket
+      setAuthCookie();
       await mergeBasket();
-
-      // Small delay to ensure cookie is committed before the proxy reads it
       await new Promise((r) => setTimeout(r, 100));
-
       router.replace(next);
-    } catch (err: any) {
-      const detail =
-        err?.response?.data?.detail ||
-        err?.response?.data?.error ||
-        "Invalid email or password.";
-      setError("root", { message: detail });
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string; error?: string } } };
+      setError("root", {
+        message: e?.response?.data?.detail || e?.response?.data?.error || "Invalid email or password.",
+      });
     }
   };
 
@@ -65,43 +57,20 @@ export default function LoginPage() {
               Create an account
             </Link>
           </p>
-
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Input
-              id="email"
-              label="Email address"
-              type="email"
-              placeholder="you@example.com"
-              autoComplete="email"
-              {...register("email")}
-              error={errors.email?.message}
-            />
-            <Input
-              id="password"
-              label="Password"
-              type="password"
-              placeholder="••••••••"
-              autoComplete="current-password"
-              {...register("password")}
-              error={errors.password?.message}
-            />
-
+            <Input id="email" label="Email address" type="email" placeholder="you@example.com"
+              autoComplete="email" {...register("email")} error={errors.email?.message} />
+            <Input id="password" label="Password" type="password" placeholder="••••••••"
+              autoComplete="current-password" {...register("password")} error={errors.password?.message} />
             {errors.root && (
               <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
                 {errors.root.message}
               </p>
             )}
-
-            <Button type="submit" size="lg" className="w-full" isLoading={isLoading}>
-              Sign in
-            </Button>
+            <Button type="submit" size="lg" className="w-full" isLoading={isLoading}>Sign in</Button>
           </form>
-
           <div className="mt-4 text-center">
-            <Link
-              href="/reset-password"
-              className="text-sm text-gray-500 hover:text-gray-900 hover:underline"
-            >
+            <Link href="/reset-password" className="text-sm text-gray-500 hover:text-gray-900 hover:underline">
               Forgot your password?
             </Link>
           </div>

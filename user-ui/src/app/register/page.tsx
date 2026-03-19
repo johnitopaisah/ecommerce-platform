@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -27,22 +26,18 @@ const schema = z
 type FormData = z.infer<typeof schema>;
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [success, setSuccess] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors, isSubmitting },
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } =
+    useForm<FormData>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (data: FormData) => {
     try {
       await authApi.register(data);
       setSuccess(true);
-    } catch (err: any) {
-      const errData = err?.response?.data;
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string; errors?: Record<string, string[]> } } };
+      const errData = e?.response?.data;
       if (errData?.errors) {
         Object.entries(errData.errors).forEach(([field, messages]) => {
           setError(field as keyof FormData, {
@@ -50,9 +45,7 @@ export default function RegisterPage() {
           });
         });
       } else {
-        setError("root", {
-          message: errData?.detail || "Registration failed. Please try again.",
-        });
+        setError("root", { message: errData?.detail || "Registration failed. Please try again." });
       }
     }
   };
@@ -68,7 +61,7 @@ export default function RegisterPage() {
           </div>
           <h1 className="text-xl font-bold text-gray-900 mb-2">Check your email</h1>
           <p className="text-gray-500 text-sm mb-6">
-            We sent an activation link to your email address. Click the link to activate your account.
+            We sent an activation link to your email. Click it to activate your account.
           </p>
           <Link href="/login">
             <Button variant="outline" className="w-full">Back to sign in</Button>
@@ -85,73 +78,29 @@ export default function RegisterPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Create account</h1>
           <p className="text-sm text-gray-500 mb-8">
             Already have an account?{" "}
-            <Link href="/login" className="text-gray-900 font-medium hover:underline">
-              Sign in
-            </Link>
+            <Link href="/login" className="text-gray-900 font-medium hover:underline">Sign in</Link>
           </p>
-
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <Input
-                id="first_name"
-                label="First name"
-                placeholder="John"
-                {...register("first_name")}
-                error={errors.first_name?.message}
-              />
-              <Input
-                id="last_name"
-                label="Last name"
-                placeholder="Doe"
-                {...register("last_name")}
-                error={errors.last_name?.message}
-              />
+              <Input id="first_name" label="First name" placeholder="John"
+                {...register("first_name")} error={errors.first_name?.message} />
+              <Input id="last_name" label="Last name" placeholder="Doe"
+                {...register("last_name")} error={errors.last_name?.message} />
             </div>
-            <Input
-              id="user_name"
-              label="Username"
-              placeholder="johndoe"
-              autoComplete="username"
-              {...register("user_name")}
-              error={errors.user_name?.message}
-            />
-            <Input
-              id="email"
-              label="Email address"
-              type="email"
-              placeholder="you@example.com"
-              autoComplete="email"
-              {...register("email")}
-              error={errors.email?.message}
-            />
-            <Input
-              id="password"
-              label="Password"
-              type="password"
-              placeholder="Min. 8 characters"
-              autoComplete="new-password"
-              {...register("password")}
-              error={errors.password?.message}
-            />
-            <Input
-              id="password2"
-              label="Confirm password"
-              type="password"
-              placeholder="Repeat password"
-              autoComplete="new-password"
-              {...register("password2")}
-              error={errors.password2?.message}
-            />
-
+            <Input id="user_name" label="Username" placeholder="johndoe" autoComplete="username"
+              {...register("user_name")} error={errors.user_name?.message} />
+            <Input id="email" label="Email address" type="email" placeholder="you@example.com"
+              autoComplete="email" {...register("email")} error={errors.email?.message} />
+            <Input id="password" label="Password" type="password" placeholder="Min. 8 characters"
+              autoComplete="new-password" {...register("password")} error={errors.password?.message} />
+            <Input id="password2" label="Confirm password" type="password" placeholder="Repeat password"
+              autoComplete="new-password" {...register("password2")} error={errors.password2?.message} />
             {errors.root && (
               <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
                 {errors.root.message}
               </p>
             )}
-
-            <Button type="submit" size="lg" className="w-full" isLoading={isSubmitting}>
-              Create account
-            </Button>
+            <Button type="submit" size="lg" className="w-full" isLoading={isSubmitting}>Create account</Button>
           </form>
         </div>
       </div>
