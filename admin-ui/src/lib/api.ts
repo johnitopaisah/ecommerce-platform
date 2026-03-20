@@ -1,6 +1,14 @@
+/**
+ * Axios instance with JWT auto-refresh.
+ *
+ * BASE_URL is always relative (/api/v1) so the browser calls the same
+ * host it loaded from. Next.js rewrites proxy these requests server-side
+ * to Django (http://api:8000). No NEXT_PUBLIC_API_URL needed ever.
+ */
+
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const BASE_URL = "/api/v1";
 
 export const api = axios.create({
   baseURL: BASE_URL,
@@ -39,7 +47,9 @@ api.interceptors.response.use(
       }
       orig._retry = true;
       isRefreshing = true;
-      const refresh = typeof window !== "undefined" ? localStorage.getItem("admin_refresh_token") : null;
+      const refresh = typeof window !== "undefined"
+        ? localStorage.getItem("admin_refresh_token")
+        : null;
       if (!refresh) {
         isRefreshing = false;
         if (typeof window !== "undefined") {
