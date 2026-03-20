@@ -80,7 +80,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build image (for scanning)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./user-ui
           file: ./user-ui/Dockerfile
@@ -117,7 +117,7 @@ jobs:
         run: cat trivy-user-ui-report.txt || true
 
       - name: Push to Docker Hub
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./user-ui
           file: ./user-ui/Dockerfile
