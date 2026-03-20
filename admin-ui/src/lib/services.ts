@@ -1,8 +1,6 @@
 import api from "@/lib/api";
 import type { AuthTokens, User, Product, Category, Order, AdminStats } from "@/types";
 
-// Write payload types — prices are numbers when sending to the API
-// (Django accepts both; the response always returns strings)
 export interface ProductWritePayload {
   title: string;
   description?: string;
@@ -32,6 +30,16 @@ export const productsApi = {
   update: (slug: string, data: Partial<ProductWritePayload>) =>
     api.patch<Product>(`/admin/products/${slug}/`, data),
   delete: (slug: string) => api.delete(`/admin/products/${slug}/`),
+  uploadImage: (slug: string, file: File) => {
+    const form = new FormData();
+    form.append("image", file);
+    form.append("is_primary", "true");
+    return api.post(`/admin/products/${slug}/images/`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+  deleteImage: (slug: string, imageId: number) =>
+    api.delete(`/admin/products/${slug}/images/${imageId}/`),
 };
 
 export const categoriesApi = {

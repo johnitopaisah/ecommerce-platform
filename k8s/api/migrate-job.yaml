@@ -8,9 +8,7 @@ metadata:
     component: api
     job-type: migrate
 spec:
-  # Job will retry up to 3 times if it fails
   backoffLimit: 3
-  # Auto-delete the job 10 minutes after it completes
   ttlSecondsAfterFinished: 600
   template:
     metadata:
@@ -23,7 +21,6 @@ spec:
       imagePullSecrets:
         - name: dockerhub-secret
       initContainers:
-        # Wait for postgres to be fully ready before running migrations
         - name: wait-for-postgres
           image: postgres:16-alpine
           command:
@@ -44,7 +41,7 @@ spec:
                   key: DB_PASSWORD
       containers:
         - name: migrate
-          image: johnitopaisah/ecommerce-api:v0.1.0
+          image: johnitopaisah/ecommerce-api:v0.1.1
           command:
             - sh
             - -c
@@ -63,6 +60,11 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: SECRET_KEY
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: DB_USER
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
