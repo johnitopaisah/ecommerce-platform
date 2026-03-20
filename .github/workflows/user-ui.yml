@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to build and push (e.g. v1.0.0)"
+        description: "Release tag to build and push (e.g. v1.0.0 or v1.0.0-rc)"
         required: true
         type: string
   workflow_call:
     inputs:
       tag:
-        description: "Release tag to build and push (e.g. v1.0.0)"
+        description: "Release tag to build and push (e.g. v1.0.0 or v1.0.0-rc)"
         required: true
         type: string
 
@@ -64,8 +64,8 @@ jobs:
 
       - name: Validate tag format
         run: |
-          if [[ ! "${{ inputs.tag }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "ERROR: Tag must follow semver format: v1.2.3 (got '${{ inputs.tag }}')"
+          if [[ ! "${{ inputs.tag }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9._-]+)?$ ]]; then
+            echo "ERROR: Tag must follow semver format: v1.2.3 or v1.2.3-rc (got '${{ inputs.tag }}')"
             exit 1
           fi
           echo "Tag ${{ inputs.tag }} is valid"
