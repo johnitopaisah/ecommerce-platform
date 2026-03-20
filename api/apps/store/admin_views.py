@@ -25,17 +25,14 @@ from .serializers import (
 @api_view(['GET', 'POST'])
 @permission_classes([IsAdminUser])
 def admin_category_list(request):
-    """List all categories or create a new one."""
     if request.method == 'GET':
         categories = Category.objects.all().order_by('name')
         return Response(CategorySerializer(categories, many=True).data)
 
     serializer = CategorySerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    # Auto-generate slug from name if not provided
     name = serializer.validated_data['name']
     slug = slugify(name)
-    # Ensure uniqueness
     base_slug = slug
     counter = 1
     while Category.objects.filter(slug=slug).exists():
@@ -49,7 +46,6 @@ def admin_category_list(request):
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 @permission_classes([IsAdminUser])
 def admin_category_detail(request, slug):
-    """Retrieve, update or delete a category."""
     try:
         category = Category.objects.get(slug=slug)
     except Category.DoesNotExist:
@@ -79,7 +75,6 @@ def admin_category_detail(request, slug):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAdminUser])
 def admin_product_list(request):
-    """List all products (including inactive) or create a new one."""
     if request.method == 'GET':
         products = (
             Product.objects
@@ -102,7 +97,6 @@ def admin_product_list(request):
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 @permission_classes([IsAdminUser])
 def admin_product_detail(request, slug):
-    """Retrieve, update or delete a product."""
     try:
         product = (
             Product.objects
@@ -137,7 +131,11 @@ def admin_product_detail(request, slug):
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def admin_product_image_upload(request, slug):
-    """Upload an additional image for a product."""
+    """
+    Upload an image for a product.
+    When is_primary=True (the default from the admin UI), the uploaded image
+    is also set as the product's main image field so it appears on the storefront.
+    """
     try:
         product = Product.objects.get(slug=slug)
     except Product.DoesNotExist:
@@ -148,15 +146,37 @@ def admin_product_image_upload(request, slug):
 
     serializer = ProductImageSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    serializer.save(product=product)
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+    product_image = serializer.save(product=product)
+
+    # If this is marked as primary (or it's the first image), also update
+    # the product's main image field so the storefront shows it immediately.
+    is_primary = request.data.get('is_primary', 'true')
+    is_first_image = not ProductImage.objects.filter(
+        product=product
+    ).exclude(id=product_image.id).exists()
+
+    if is_primary in (True, 'true', 'True', '1') or is_first_image:
+        # Clear previous primary flags
+        ProductImage.objects.filter(product=product, is_primary=True).exclude(
+            id=product_image.id
+        ).update(is_primary=False)
+        product_image.is_primary = True
+        product_image.save(update_fields=['is_primary'])
+
+        # Sync the product's main image field
+        product.image = product_image.image
+        product.save(update_fields=['image'])
+
+    return Response(
+        ProductImageSerializer(product_image).data,
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @extend_schema(tags=['admin'])
 @api_view(['DELETE'])
 @permission_classes([IsAdminUser])
 def admin_product_image_delete(request, slug, image_id):
-    """Delete a product image."""
     try:
         image = ProductImage.objects.get(id=image_id, product__slug=slug)
     except ProductImage.DoesNotExist:
@@ -164,5 +184,21 @@ def admin_product_image_delete(request, slug, image_id):
             {'error': 'not_found', 'detail': 'Image not found.'},
             status=status.HTTP_404_NOT_FOUND,
         )
+
+    was_primary = image.is_primary
+    product = image.product
     image.delete()
+
+    # If we deleted the primary image, promote the next image
+    # and update the product's main image field
+    if was_primary:
+        next_image = ProductImage.objects.filter(product=product).first()
+        if next_image:
+            next_image.is_primary = True
+            next_image.save(update_fields=['is_primary'])
+            product.image = next_image.image
+        else:
+            product.image = 'products/default.png'
+        product.save(update_fields=['image'])
+
     return Response(status=status.HTTP_204_NO_CONTENT)

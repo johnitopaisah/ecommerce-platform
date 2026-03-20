@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X } from "lucide-react";
+import { X, Upload, ImageIcon } from "lucide-react";
 import { productsApi } from "@/lib/services";
 import type { ProductWritePayload } from "@/lib/services";
 import type { Product, Category } from "@/types";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import Image from "next/image";
 
 const schema = z.object({
   title: z.string().min(2, "Title is required"),
@@ -32,6 +33,11 @@ interface Props {
 
 export default function ProductModal({ product, categories, onSave, onClose }: Props) {
   const isEdit = !!product;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(product?.image || null);
+  const [imageError, setImageError] = useState("");
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } =
     useForm<FormData>({
@@ -41,9 +47,7 @@ export default function ProductModal({ product, categories, onSave, onClose }: P
         description: product?.description || "",
         category_id: product?.category?.id || 0,
         price: product ? parseFloat(product.price) : 0,
-        discount_price: product?.discount_price
-          ? parseFloat(product.discount_price)
-          : undefined,
+        discount_price: product?.discount_price ? parseFloat(product.discount_price) : undefined,
         stock_quantity: product?.stock_quantity || 0,
         is_active: product?.is_active ?? true,
       },
@@ -56,16 +60,40 @@ export default function ProductModal({ product, categories, onSave, onClose }: P
         description: product.description,
         category_id: product.category?.id || 0,
         price: parseFloat(product.price),
-        discount_price: product.discount_price
-          ? parseFloat(product.discount_price)
-          : undefined,
+        discount_price: product.discount_price ? parseFloat(product.discount_price) : undefined,
         stock_quantity: product.stock_quantity,
         is_active: product.is_active,
       });
+      setImagePreview(product.image || null);
+      setImageFile(null);
     }
   }, [product, reset]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setImageError("Please select an image file (JPG, PNG, WebP).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError("Image must be smaller than 5MB.");
+      return;
+    }
+    setImageError("");
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const onSubmit = async (data: FormData) => {
+    setImageError("");
+
     const payload: ProductWritePayload = {
       title: data.title,
       description: data.description,
@@ -76,11 +104,32 @@ export default function ProductModal({ product, categories, onSave, onClose }: P
       is_active: data.is_active,
     };
 
-    if (isEdit && product) {
-      await productsApi.update(product.slug, payload);
-    } else {
-      await productsApi.create(payload);
+    let savedSlug = product?.slug;
+
+    try {
+      if (isEdit && product) {
+        await productsApi.update(product.slug, payload);
+      } else {
+        const res = await productsApi.create(payload);
+        savedSlug = res.data.slug;
+      }
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: unknown } };
+      const detail = JSON.stringify(e?.response?.data ?? "Unknown error");
+      setImageError(`Save failed: ${detail}`);
+      return;
     }
+
+    if (imageFile && savedSlug) {
+      try {
+        await productsApi.uploadImage(savedSlug, imageFile);
+      } catch {
+        setImageError("Product saved but image upload failed. You can add it later.");
+        onSave();
+        return;
+      }
+    }
+
     onSave();
   };
 
@@ -97,6 +146,71 @@ export default function ProductModal({ product, categories, onSave, onClose }: P
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-5 space-y-4">
+
+          {/* Image upload */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-600">Product image</label>
+
+            {imagePreview ? (
+              <div className="relative w-full h-48 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 group">
+                <Image
+                  src={imagePreview}
+                  alt="Product preview"
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-white text-gray-900 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100"
+                  >
+                    Change
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="bg-red-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-red-600"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full h-36 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Upload size={24} />
+                <span className="text-sm font-medium">Click to upload image</span>
+                <span className="text-xs">JPG, PNG, WebP — max 5MB</span>
+              </button>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
+            {imageError && (
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 break-all">
+                {imageError}
+              </p>
+            )}
+
+            {!imagePreview && !isEdit && (
+              <p className="text-xs text-gray-400 flex items-center gap-1">
+                <ImageIcon size={11} /> You can also add images after creating the product
+              </p>
+            )}
+          </div>
+
+          {/* Fields */}
           <Input id="title" label="Title *" {...register("title")} error={errors.title?.message} />
 
           <div className="flex flex-col gap-1">

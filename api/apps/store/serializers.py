@@ -22,7 +22,6 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
 
 class ProductListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for list views — no heavy fields."""
     category_name = serializers.CharField(source='category.name', read_only=True)
     in_stock = serializers.BooleanField(read_only=True)
     effective_price = serializers.DecimalField(
@@ -39,7 +38,6 @@ class ProductListSerializer(serializers.ModelSerializer):
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
-    """Full serializer for detail view — includes images and category."""
     category = CategorySerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(),
@@ -68,7 +66,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
 
 class ProductWriteSerializer(serializers.ModelSerializer):
-    """Used by admin endpoints to create/update products."""
+    """
+    Used by admin endpoints to create/update products via JSON.
+    Image is handled separately via the /images/ endpoint (multipart upload).
+    The product falls back to the default image until one is uploaded.
+    """
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(),
         source='category',
@@ -79,8 +81,9 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         fields = (
             'title', 'description', 'category_id',
             'price', 'discount_price',
-            'image', 'stock_quantity', 'is_active',
+            'stock_quantity', 'is_active',
         )
+        # image intentionally excluded — use POST /products/{slug}/images/
 
     def validate_price(self, value):
         if value <= 0:

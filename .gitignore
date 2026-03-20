@@ -10,9 +10,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-# NOTE: 'lib/' is intentionally NOT ignored globally — it would exclude
-# user-ui/src/lib/ and admin-ui/src/lib/ which must be tracked.
-# Python venv lib dirs are covered by the venv/ rules below.
 lib64/
 parts/
 sdist/
@@ -33,6 +30,8 @@ media/
 # ── Environment files ─────────────────────────────────────────────────────────
 .env
 !.env.example
+.env.local
+.env.docker
 
 # ── Virtual environments ──────────────────────────────────────────────────────
 venv/
@@ -78,6 +77,8 @@ htmlcov/
 .pytest_cache/
 .mypy_cache/
 
-# ── Kubernetes secrets ────────────────────────────────────────────────────────
-k8s/overlays/prod/secrets/
-*.sealed.yaml
+# ── Kubernetes — NEVER commit real secrets ───────────────────────────────────
+# The infisical-auth-secret contains real credentials — never commit it
+k8s/infisical/infisical-auth-secret.yaml
+# Old static secrets file — replaced by Infisical
+k8s/secrets/api-secret.yaml
