@@ -1,15 +1,16 @@
 /**
  * Axios instance with JWT auto-refresh.
  *
- * Tokens are stored in localStorage (access) and in an httpOnly-style
- * cookie via the Next.js API route /api/auth/refresh (refresh).
- * For this phase we keep both in localStorage for simplicity and migrate
- * to httpOnly cookies in the production hardening pass.
+ * BASE_URL is always relative (/api/v1) so the browser calls the same
+ * host it loaded from. Next.js rewrites proxy these requests server-side
+ * to Django (http://api:8000). This means no NEXT_PUBLIC_API_URL is ever
+ * needed — the app works on any host without rebuilding.
  */
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+// Always relative — works on localhost:3000, EC2 IP, or any domain
+const BASE_URL = "/api/v1";
 
 export const api = axios.create({
   baseURL: BASE_URL,
@@ -72,7 +73,6 @@ api.interceptors.response.use(
 
       if (!refreshToken) {
         isRefreshing = false;
-        // No refresh token — clear auth and let the caller handle the 401
         if (typeof window !== "undefined") {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
