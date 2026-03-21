@@ -3,9 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
 
+  // Serve the admin UI under /admin-panel/ so all its _next/static assets
+  // are prefixed with /admin-panel/_next/ — preventing conflicts with user-ui
+  basePath: "/admin-panel",
+
   // ── API Proxy ───────────────────────────────────────────────────────────────
-  // All browser requests to /api/v1/* are proxied server-side to Django.
-  // NEXT_PUBLIC_API_URL is never needed — works on any host automatically.
   async rewrites() {
     const apiUrl = process.env.INTERNAL_API_URL || "http://api:8000";
     return [
