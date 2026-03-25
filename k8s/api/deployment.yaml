@@ -50,7 +50,7 @@ spec:
               echo "Redis ready."
       containers:
         - name: api
-          image: johnitopaisah/ecommerce-api:v0.1.1
+          image: johnitopaisah/ecommerce-api:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -110,6 +110,9 @@ spec:
             httpGet:
               path: /api/v1/health/
               port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
             initialDelaySeconds: 40
             periodSeconds: 15
             timeoutSeconds: 5
@@ -118,6 +121,9 @@ spec:
             httpGet:
               path: /api/v1/ready/
               port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
             initialDelaySeconds: 20
             periodSeconds: 10
             timeoutSeconds: 5
