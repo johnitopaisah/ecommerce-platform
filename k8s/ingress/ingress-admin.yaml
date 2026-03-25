@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: shopnow-admin-ingress
+  name: shopnow-ingress-admin-ui
   namespace: ecommerce
   labels:
     app: shopnow
@@ -15,7 +15,7 @@ spec:
   tls:
     - hosts:
         - shopnow.johnisah.com
-      secretName: shopnow-tls    # Same cert secret — covers all paths
+      secretName: shopnow-admin-ui-tls    # Same cert secret — covers all paths
   rules:
     - host: shopnow.johnisah.com
       http:
