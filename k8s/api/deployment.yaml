@@ -50,7 +50,7 @@ spec:
               echo "Redis ready."
       containers:
         - name: api
-          image: johnitopaisah/ecommerce-api:latest
+          image: johnitopaisah/ecommerce-api:v0.1.2
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
