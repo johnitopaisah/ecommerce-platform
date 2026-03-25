@@ -6,14 +6,14 @@ metadata:
   labels:
     app: shopnow
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
-    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+    traefik.ingress.kubernetes.io/proxy-body-size: "20m"
+    traefik.ingress.kubernetes.io/proxy-read-timeout: "120"
+    traefik.ingress.kubernetes.io/proxy-send-timeout: "120"
+    traefik.ingress.kubernetes.io/use-forwarded-headers: "true"
     # Start with staging — swap to letsencrypt-prod once verified
-    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Reference to cert-manager issuer for TLS
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   tls:
     - hosts:
         - shopnow.johnisah.com
