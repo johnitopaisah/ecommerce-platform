@@ -23,6 +23,7 @@ spec:
         app: shopnow
         component: user-ui
     spec:
+      serviceAccountName: shopnow-user-ui
       imagePullSecrets:
         - name: dockerhub-secret
       initContainers:

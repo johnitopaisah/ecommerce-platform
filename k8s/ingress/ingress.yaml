@@ -17,7 +17,7 @@ spec:
   tls:
     - hosts:
         - shopnow.johnisah.com
-      secretName: shopnow-user-ui-tls    # cert-manager writes the cert here
+      secretName: shopnow-tls    # Shared with ingress-admin.yaml — one cert per host, not per path
   rules:
     - host: shopnow.johnisah.com
       http:

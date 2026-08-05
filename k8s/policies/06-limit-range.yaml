@@ -1,0 +1,39 @@
+# ============================================================
+#  LimitRange — ecommerce namespace
+#
+#  Applies default requests/limits to any container that does
+#  not set them explicitly, preventing unbounded pods from
+#  consuming unlimited cluster resources.
+#
+#  Min/max are bounds — scheduler rejects containers outside range.
+#  Default/defaultRequest are applied when not explicitly set.
+#
+#  Left disabled to match portfolio-mcs's own k8s/policies/06-limit-range.yaml,
+#  which is also commented out there — every container in both projects
+#  already sets explicit requests/limits, so defaults never trigger.
+#  Uncomment if a container is ever added without them.
+# ============================================================
+
+# apiVersion: v1
+# kind: LimitRange
+# metadata:
+#   name: shopnow-limits
+#   namespace: ecommerce
+#   labels:
+#     app.kubernetes.io/part-of: shopnow
+#     app.kubernetes.io/managed-by: argocd
+# spec:
+#   limits:
+#     - type: Container
+#       min:
+#         cpu:    "10m"
+#         memory: "32Mi"
+#       max:
+#         cpu:    "1"
+#         memory: "1Gi"
+#       defaultRequest:
+#         cpu:    "50m"
+#         memory: "64Mi"
+#       default:
+#         cpu:    "100m"
+#         memory: "128Mi"

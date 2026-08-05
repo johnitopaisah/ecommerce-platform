@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: shopnow-admin-ui-pdb
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/managed-by: argocd
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: shopnow
+      component: admin-ui

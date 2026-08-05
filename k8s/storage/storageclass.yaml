@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: shopnow-retain
+  labels:
+    app: shopnow
+# Uses the same minikube hostpath provisioner as 'standard'
+# but with Retain policy — PV survives PVC deletion
+provisioner: k8s.io/minikube-hostpath
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
