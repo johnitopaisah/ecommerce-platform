@@ -1,0 +1,11 @@
+# ============================================================
+#  Trivy ignore list — k8s manifest config scan
+#
+#  KSV-0109 false-positives on JWT_ACCESS_TOKEN_LIFETIME_MINUTES
+#  and JWT_REFRESH_TOKEN_LIFETIME_DAYS in configmaps/api-config.yaml:
+#  these are numeric durations (60, 7), not secrets — the heuristic
+#  just matches on the word "TOKEN" in the key name. The actual JWT
+#  signing key (SECRET_KEY) is correctly stored in the Secret
+#  (api-secret), not the ConfigMap.
+# ============================================================
+KSV-0109

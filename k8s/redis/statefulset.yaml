@@ -19,9 +19,21 @@ spec:
         app: shopnow
         component: redis
     spec:
+      # redis:7-alpine defaults to root despite having a "redis" user (uid
+      # 999, gid 1000) — fsGroup fixes up the mounted PVC's group ownership
+      # to allow the non-root process to keep writing its existing data.
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1000
       containers:
         - name: redis
           image: redis:7-alpine
+          securityContext:
+            runAsUser: 999
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           command:
             - redis-server
             - --save
@@ -35,6 +47,8 @@ spec:
           volumeMounts:
             - name: redis-data
               mountPath: /data
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               memory: "64Mi"
@@ -54,6 +68,9 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3
+      volumes:
+        - name: tmp
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: redis-data

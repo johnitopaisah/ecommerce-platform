@@ -20,9 +20,17 @@ spec:
       restartPolicy: OnFailure
       imagePullSecrets:
         - name: dockerhub-secret
+      securityContext:
+        runAsNonRoot: true
       initContainers:
         - name: wait-for-postgres
           image: postgres:16-alpine
+          securityContext:
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           command:
             - sh
             - -c
@@ -49,6 +57,12 @@ spec:
       containers:
         - name: migrate
           image: johnitopaisah/ecommerce-api:v0.1.2
+          securityContext:
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           command:
             - sh
             - -c
@@ -68,6 +82,11 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+          volumeMounts:
+            - name: staticfiles
+              mountPath: /app/staticfiles
+            - name: tmp
+              mountPath: /tmp
           env:
             - name: SECRET_KEY
               valueFrom:
@@ -109,3 +128,8 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: STRIPE_ENDPOINT_SECRET
+      volumes:
+        - name: staticfiles
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
