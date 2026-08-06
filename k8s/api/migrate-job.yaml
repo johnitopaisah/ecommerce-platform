@@ -48,7 +48,7 @@ spec:
               memory: "32Mi"
       containers:
         - name: migrate
-          image: johnitopaisah/ecommerce-api:v0.1.1
+          image: johnitopaisah/ecommerce-api:v0.1.2
           command:
             - sh
             - -c
