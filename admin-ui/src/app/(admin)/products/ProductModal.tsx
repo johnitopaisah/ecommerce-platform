@@ -35,9 +35,15 @@ export default function ProductModal({ product, categories, onSave, onClose }: P
   const isEdit = !!product;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // imageFile holds a newly selected file (null = no new file chosen yet)
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(product?.image || null);
+  // imageFileUrl is the blob URL for the newly selected file
+  const [imageFileUrl, setImageFileUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState("");
+
+  // Derived: show the new file preview if one was chosen, otherwise show the
+  // existing product image. No setState in effects needed.
+  const imagePreview = imageFileUrl ?? (product?.image || null);
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } =
     useForm<FormData>({
@@ -53,6 +59,7 @@ export default function ProductModal({ product, categories, onSave, onClose }: P
       },
     });
 
+  // Only reset the form fields — no setState for image here
   useEffect(() => {
     if (product) {
       reset({
@@ -64,10 +71,15 @@ export default function ProductModal({ product, categories, onSave, onClose }: P
         stock_quantity: product.stock_quantity,
         is_active: product.is_active,
       });
-      setImagePreview(product.image || null);
-      setImageFile(null);
     }
   }, [product, reset]);
+
+  // Revoke blob URL on unmount to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      if (imageFileUrl) URL.revokeObjectURL(imageFileUrl);
+    };
+  }, [imageFileUrl]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,14 +92,16 @@ export default function ProductModal({ product, categories, onSave, onClose }: P
       setImageError("Image must be smaller than 5MB.");
       return;
     }
+    if (imageFileUrl) URL.revokeObjectURL(imageFileUrl);
     setImageError("");
     setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    setImageFileUrl(URL.createObjectURL(file));
   };
 
   const handleRemoveImage = () => {
+    if (imageFileUrl) URL.revokeObjectURL(imageFileUrl);
     setImageFile(null);
-    setImagePreview(null);
+    setImageFileUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 

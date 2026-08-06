@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shopnow-infisical
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: shopnow-infisical
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/component: secrets
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"   # secrets must exist before app services
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: shopnow
+  source:
+    repoURL: https://github.com/johnitopaisah/ecommerce-platform
+    targetRevision: develop
+    path: k8s/infisical
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=false
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: api-secret
+      namespace: ecommerce
+      jsonPointers:
+        - /data   # Infisical operator manages secret contents

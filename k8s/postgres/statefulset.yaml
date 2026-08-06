@@ -7,8 +7,8 @@ metadata:
     app: shopnow
     component: postgres
 spec:
-  serviceName: postgres          # Must match the headless Service name
-  replicas: 1                    # Single primary — no HA for local dev
+  serviceName: postgres
+  replicas: 1
   selector:
     matchLabels:
       app: shopnow
@@ -76,8 +76,12 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: postgres-data
+        annotations:
+          helm.sh/resource-policy: keep
       spec:
         accessModes: ["ReadWriteOnce"]
+        # Use Retain storage class — PV survives PVC deletion
+        storageClassName: shopnow-retain
         resources:
           requests:
-            storage: 2Gi           # 2GB persistent disk for local dev
+            storage: 2Gi

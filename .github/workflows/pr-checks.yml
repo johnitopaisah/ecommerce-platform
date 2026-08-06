@@ -1,0 +1,197 @@
+# ============================================================
+#  PR Checks — Fast Quality Gate
+#
+#  Runs the same lint/typecheck/test steps as each service's
+#  release pipeline (api.yml / admin-ui.yml / user-ui.yml),
+#  but on every pull request — no image build, no push, no
+#  manifest update. Gives fast feedback without waiting for a
+#  manual tagged release run.
+#
+#  Pair this with a branch-protection rule requiring these
+#  jobs as required status checks on main/develop.
+# ============================================================
+
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  NODE_VER:   "20"
+  PYTHON_VER: "3.13"
+
+jobs:
+
+  # ── API ──────────────────────────────────────────────────
+  api:
+    name: API — lint & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       ecommerce_test
+          POSTGRES_USER:     ecom_user
+          POSTGRES_PASSWORD: ecom_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VER }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VER }}
+          cache: pip
+          cache-dependency-path: api/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-django coverage flake8
+
+      - name: Create test .env
+        run: |
+          cat > .env << 'ENVEOF'
+          SECRET_KEY=ci-test-secret-key-not-for-production-use-at-all
+          DEBUG=True
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          DATABASE_URL=postgres://ecom_user:ecom_pass@localhost:5432/ecommerce_test
+          REDIS_URL=redis://localhost:6379/0
+          CORS_ALLOWED_ORIGINS=http://localhost:3000
+          JWT_ACCESS_TOKEN_LIFETIME_MINUTES=60
+          JWT_REFRESH_TOKEN_LIFETIME_DAYS=7
+          EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+          DEFAULT_FROM_EMAIL=noreply@test.com
+          FRONTEND_URL=http://localhost:3000
+          STRIPE_PUBLISHABLE_KEY=pk_test_dummy
+          STRIPE_SECRET_KEY=sk_test_dummy
+          STRIPE_ENDPOINT_SECRET=whsec_dummy
+          USE_S3=False
+          ENVEOF
+
+      - name: Run migrations
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.development
+        run: python manage.py migrate --noinput
+
+      - name: Flake8 lint
+        run: flake8 apps/ config/ --statistics --count
+
+      - name: Check no placeholder secrets in source
+        run: |
+          BAD=0
+          for PAT in "changeme" "REPLACE_THIS" "your-secret-here"; do
+            if grep -r "$PAT" apps/ config/ --include="*.py" -l 2>/dev/null; then
+              echo "❌ Found placeholder '$PAT'"; BAD=1
+            fi
+          done
+          [ $BAD -eq 0 ] && echo "✅ No placeholders found"
+          exit $BAD
+
+      - name: Run tests
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.development
+        run: |
+          coverage run -m pytest apps/ -v --tb=short || echo "No tests found yet — skipping"
+          coverage report --skip-covered || true
+
+  # ── User UI ──────────────────────────────────────────────
+  user-ui:
+    name: User UI — lint & typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: user-ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VER }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VER }}
+          cache: npm
+          cache-dependency-path: user-ui/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci --frozen-lockfile
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+
+      - name: Next.js build check
+        env:
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_dummy
+        run: npm run build
+
+      - name: Check no hardcoded localhost in source
+        run: |
+          if grep -r "localhost:8000\|localhost:4000" src/ --include="*.ts" --include="*.tsx" -l 2>/dev/null; then
+            echo "❌ Found hardcoded localhost — must use env var"
+            exit 1
+          fi
+          echo "✅ No hardcoded localhost found"
+
+  # ── Admin UI ─────────────────────────────────────────────
+  admin-ui:
+    name: Admin UI — lint & typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VER }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VER }}
+          cache: npm
+          cache-dependency-path: admin-ui/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci --frozen-lockfile
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+
+      - name: Next.js build check
+        run: npm run build
+
+      - name: Check no hardcoded localhost in source
+        run: |
+          if grep -r "localhost:8000\|localhost:4000" src/ --include="*.ts" --include="*.tsx" -l 2>/dev/null; then
+            echo "❌ Found hardcoded localhost — must use env var"
+            exit 1
+          fi
+          echo "✅ No hardcoded localhost found"

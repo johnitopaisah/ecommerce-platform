@@ -23,6 +23,7 @@ spec:
         app: shopnow
         component: api
     spec:
+      serviceAccountName: shopnow-api
       imagePullSecrets:
         - name: dockerhub-secret
       initContainers:
@@ -37,6 +38,13 @@ spec:
                 sleep 2
               done
               echo "Postgres ready."
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "50m"
+              memory: "32Mi"
         - name: wait-for-redis
           image: redis:7-alpine
           command:
@@ -48,9 +56,16 @@ spec:
                 sleep 2
               done
               echo "Redis ready."
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "50m"
+              memory: "32Mi"
       containers:
         - name: api
-          image: johnitopaisah/ecommerce-api:v0.1.1
+          image: johnitopaisah/ecommerce-api:v0.1.2
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -110,6 +125,9 @@ spec:
             httpGet:
               path: /api/v1/health/
               port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
             initialDelaySeconds: 40
             periodSeconds: 15
             timeoutSeconds: 5
@@ -118,6 +136,9 @@ spec:
             httpGet:
               path: /api/v1/ready/
               port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
             initialDelaySeconds: 20
             periodSeconds: 10
             timeoutSeconds: 5

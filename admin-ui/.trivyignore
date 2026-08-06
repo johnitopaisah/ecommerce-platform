@@ -1,0 +1,38 @@
+# ============================================================
+#  Trivy ignore list — admin-ui image
+#
+#  Category 1: vendored inside next's own compiled bundle
+#  (next/dist/compiled/*), not a real top-level dependency in
+#  package.json/package-lock.json, not imported by our app code,
+#  not reachable at runtime. Confirmed for tar and cross-spawn
+#  by inspecting the built image directly (see user-ui's
+#  identical investigation — same next.js version, same bundle).
+#  Re-check when next.js releases a new version — these get
+#  bumped upstream by the Next.js team, not by us.
+CVE-2026-59873
+CVE-2026-23745
+CVE-2026-23950
+CVE-2026-24842
+CVE-2026-26960
+CVE-2026-29786
+CVE-2026-31802
+CVE-2026-59874
+CVE-2024-21538
+CVE-2026-13149
+CVE-2026-14257
+CVE-2026-69152
+CVE-2025-64756
+CVE-2026-69192
+CVE-2026-26996
+CVE-2026-27903
+CVE-2026-27904
+CVE-2026-48815
+
+#  Category 2: Alpine base image (node:20-alpine) — fix version
+#  exists in Trivy's DB (3.5.7-r0) but Alpine's own package repo
+#  has not published it yet as of this image's build; confirmed
+#  via `apk info` against a freshly-pulled node:20-alpine that
+#  3.5.6-r0 is genuinely the latest installable version right
+#  now. Nothing to fix on our side until upstream catches up —
+#  re-verify on next rebuild.
+CVE-2026-45447

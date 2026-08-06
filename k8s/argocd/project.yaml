@@ -1,0 +1,57 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: shopnow
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"   # create the project before any child Application
+spec:
+  description: "ShopNow e-commerce platform — API, admin-ui, user-ui, Postgres, Redis"
+
+  sourceRepos:
+    - https://github.com/johnitopaisah/ecommerce-platform
+
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: ecommerce          # workloads
+    - server: https://kubernetes.default.svc
+      namespace: argocd             # App of Apps child Applications
+    - server: https://kubernetes.default.svc
+      namespace: cert-manager
+    - server: https://kubernetes.default.svc
+      namespace: infisical
+
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: "storage.k8s.io"
+      kind: StorageClass
+    - group: "cert-manager.io"
+      kind: ClusterIssuer
+
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+
+  # Prevent privilege escalation via cluster-level bindings
+  clusterResourceBlacklist:
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+
+  roles:
+    - name: developer
+      description: Read-only + sync access to project
+      policies:
+        - p, proj:shopnow:developer, applications, get, shopnow/*, allow
+        - p, proj:shopnow:developer, applications, sync, shopnow/*, allow
+      groups:
+        - shopnow-developers
+    - name: admin
+      description: Full access to project
+      policies:
+        - p, proj:shopnow:admin, applications, *, shopnow/*, allow
+      groups:
+        - shopnow-admins

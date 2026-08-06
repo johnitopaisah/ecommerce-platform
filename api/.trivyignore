@@ -1,0 +1,24 @@
+# ============================================================
+#  Trivy ignore list — api image
+#
+#  Both entries below are NOT in our application's dependency
+#  tree (/opt/venv, built from requirements.txt). They're
+#  artifacts of the python:3.13-slim base image's own bundled
+#  pip installation:
+#
+#    - msgpack@1.1.2  lives at pip/_vendor/msgpack — pip vendors
+#      it internally for its own use, never imported by our app.
+#      Our actual msgpack (requirements.txt) is pinned to 1.2.1.
+#
+#    - setuptools@70.3.0 — reported against pip's own bundled
+#      build metadata, not a package present in /opt/venv (which
+#      correctly has setuptools 83.0.0 per the Dockerfile's
+#      `pip install --upgrade pip setuptools`).
+#
+#  Neither is reachable by the Django application at runtime.
+#  Re-verify next time the base image or Trivy DB updates —
+#  a python:3.13-slim bump may resolve these without any
+#  action needed here.
+# ============================================================
+GHSA-6v7p-g79w-8964
+CVE-2025-47273

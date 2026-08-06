@@ -1,0 +1,371 @@
+# ============================================================
+#  Network Policies — ecommerce namespace
+#
+#  Design: default-deny-all + explicit per-service allow rules
+#
+#  Namespace topology:
+#    traefik     → ingress controller (external HTTP/HTTPS)
+#    monitoring  → Prometheus (scrapes API :8000) + shopnow-postgres-exporter (:5432)
+#    kube-system → CoreDNS (DNS resolution for all pods)
+#    ecommerce   → all workloads (api, user-ui, admin-ui, postgres, redis)
+#
+#  NOTE: contrary to what's assumed elsewhere in this cluster's docs,
+#  kindnet DOES enforce NetworkPolicy here — confirmed the hard way
+#  when default-deny-all silently blocked Traefik from reaching
+#  cert-manager's ephemeral HTTP-01 solver pods (rule 6 below), which
+#  stalled TLS issuance for 40+ minutes with no obvious error pointing
+#  at NetworkPolicy as the cause.
+# ============================================================
+
+# ── 0. Default deny-all ──────────────────────────────────────
+# Blocks all ingress and egress for every pod in the ecommerce
+# namespace. Explicit allow rules below open only what is needed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+
+# ── 1. API ───────────────────────────────────────────────────
+# Ingress:  Traefik (external), other ecommerce pods (SSR), Prometheus (metrics)
+# Egress:   CoreDNS, Postgres (5432), Redis (6379), external HTTPS (Stripe), SMTP (465)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector:
+    matchLabels:
+      app: shopnow
+      component: api
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+      ports:
+        - protocol: TCP
+          port: 8000
+
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecommerce
+      ports:
+        - protocol: TCP
+          port: 8000
+
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8000
+
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecommerce
+          podSelector:
+            matchLabels:
+              component: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecommerce
+          podSelector:
+            matchLabels:
+              component: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 465
+        - protocol: TCP
+          port: 587   # SMTP STARTTLS — EMAIL_PORT in api-config.yaml, used for account activation emails
+
+---
+
+# ── 2. User UI ───────────────────────────────────────────────
+# Ingress:  Traefik only (external users)
+# Egress:   CoreDNS + API (Next.js SSR calls to api)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-user-ui
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector:
+    matchLabels:
+      app: shopnow
+      component: user-ui
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+      ports:
+        - protocol: TCP
+          port: 3000
+
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecommerce
+          podSelector:
+            matchLabels:
+              component: api
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+
+# ── 3. Admin UI ──────────────────────────────────────────────
+# Ingress:  Traefik only
+# Egress:   CoreDNS + API (Next.js SSR calls to api)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-admin-ui
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector:
+    matchLabels:
+      app: shopnow
+      component: admin-ui
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+      ports:
+        - protocol: TCP
+          port: 3001
+
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecommerce
+          podSelector:
+            matchLabels:
+              component: api
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+
+# ── 4. Postgres ──────────────────────────────────────────────
+# Ingress:  API pods only (5432) + shopnow-postgres-exporter from monitoring (5432)
+# Egress:   CoreDNS only — DB should never initiate outbound connections
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector:
+    matchLabels:
+      app: shopnow
+      component: postgres
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecommerce
+          podSelector:
+            matchLabels:
+              component: api
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: backup
+      ports:
+        - protocol: TCP
+          port: 5432
+
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+
+# ── 5. Redis ─────────────────────────────────────────────────
+# Ingress:  API pods only (6379)
+# Egress:   CoreDNS only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector:
+    matchLabels:
+      app: shopnow
+      component: redis
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecommerce
+          podSelector:
+            matchLabels:
+              component: api
+      ports:
+        - protocol: TCP
+          port: 6379
+
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+
+# ── 6. cert-manager ACME HTTP-01 solver ─────────────────────
+# Ephemeral pods cert-manager spins up per Certificate to answer
+# /.well-known/acme-challenge/<token> requests, identified by the
+# standard acme.cert-manager.io/http01-solver label rather than a
+# fixed name (a new pod is created for every issuance/renewal).
+# Ingress:  Traefik only, on the solver's listen port (8089)
+# Egress:   none — the solver never initiates outbound connections
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-acme-http01-solver
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes:
+    - Ingress
+
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+      ports:
+        - protocol: TCP
+          port: 8089

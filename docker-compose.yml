@@ -54,7 +54,7 @@ services:
     env_file:
       - ./api/.env.docker
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SETTINGS_MODULE: config.settings.local
     volumes:
       - media_data:/app/media
       - static_data:/app/staticfiles
@@ -71,7 +71,6 @@ services:
       context: ./user-ui
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost/api/v1
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_replace_me
     container_name: ecom_user_ui
     restart: unless-stopped
@@ -86,8 +85,6 @@ services:
     build:
       context: ./admin-ui
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: http://localhost/api/v1
     container_name: ecom_admin_ui
     restart: unless-stopped
     environment:

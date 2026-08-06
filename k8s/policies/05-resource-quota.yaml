@@ -1,0 +1,39 @@
+# ============================================================
+#  ResourceQuota — ecommerce namespace
+#
+#  Cluster capacity: 2-node Minikube, shared with portfolio-mcs
+#  (whose own ResourceQuota already reserves requests.cpu=3,
+#  requests.memory=4Gi, limits.cpu=8, limits.memory=10Gi).
+#
+#  ShopNow steady-state (min HPA replicas: api×2, user-ui×2, admin-ui×1,
+#  postgres×1, redis×1):
+#    requests.cpu:    ~1,150m
+#    requests.memory: ~1,216Mi
+#    limits.cpu:      ~2,600m
+#    limits.memory:   ~2,432Mi
+#
+#  Quota below covers steady-state plus comfortable headroom for HPA
+#  to scale up under real load, without reserving the full theoretical
+#  ceiling of every HPA maxReplicas firing at once (api×10 alone would
+#  need 5,000m limits.cpu — unrealistic for a portfolio project sharing
+#  this cluster with portfolio-mcs). Revisit if real traffic approaches
+#  these numbers.
+# ============================================================
+
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: shopnow-quota
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/managed-by: argocd
+spec:
+  hard:
+    requests.cpu:    "2"
+    requests.memory: "2Gi"
+    limits.cpu:      "4"
+    limits.memory:   "4Gi"
+    pods:            "15"
+    services:        "10"
+    persistentvolumeclaims: "3"

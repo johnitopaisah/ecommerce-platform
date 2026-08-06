@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shopnow-db
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: shopnow-db
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"   # DB must be healthy before app services
+  # No finalizer — ArgoCD must never auto-delete database resources
+spec:
+  project: shopnow
+  source:
+    repoURL: https://github.com/johnitopaisah/ecommerce-platform
+    targetRevision: develop
+    path: k8s/postgres
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  # NO automated sync — DB changes require a manual review + click in ArgoCD UI
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: postgres
+      jsonPointers:
+        - /spec/replicas
+        - /spec/volumeClaimTemplates

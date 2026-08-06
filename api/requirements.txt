@@ -1,5 +1,5 @@
 # Core
-Django==5.1.2
+Django==5.1.14
 djangorestframework==3.15.2
 
 # Database
@@ -9,6 +9,7 @@ dj-database-url==2.3.0
 # Cache / Sessions
 redis==5.2.1
 django-redis==5.4.0
+msgpack==1.2.1   # transitive dep of redis — pinned to patch GHSA-6v7p-g79w-8964
 
 # Auth
 djangorestframework-simplejwt==5.3.1
@@ -24,7 +25,7 @@ django-storages==1.14.4
 boto3==1.35.85
 
 # Image handling
-Pillow==11.0.0
+Pillow==12.3.0
 
 # Countries field
 django-countries==7.6.1

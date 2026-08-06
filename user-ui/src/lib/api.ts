@@ -1,15 +1,22 @@
 /**
  * Axios instance with JWT auto-refresh.
  *
- * Tokens are stored in localStorage (access) and in an httpOnly-style
- * cookie via the Next.js API route /api/auth/refresh (refresh).
- * For this phase we keep both in localStorage for simplicity and migrate
- * to httpOnly cookies in the production hardening pass.
+ * - Server-side (SSR/SSG): uses INTERNAL_API_URL (http://api:8000/api/v1)
+ *   so Next.js can reach Django directly inside the cluster.
+ * - Client-side (browser): uses /api/v1 (relative) so the browser calls
+ *   the same host it loaded from, and Next.js rewrites proxy it to Django.
+ *
+ * This means NO build-time URL is ever needed — works on any host.
  */
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const BASE_URL =
+  typeof window === "undefined"
+    ? // Server-side: use internal cluster URL
+      `${process.env.INTERNAL_API_URL || "http://api:8000"}/api/v1`
+    : // Client-side: relative URL proxied by Next.js rewrites
+      "/api/v1";
 
 export const api = axios.create({
   baseURL: BASE_URL,
@@ -17,7 +24,7 @@ export const api = axios.create({
   withCredentials: false,
 });
 
-// ── Request interceptor — attach access token ─────────────────────────────────
+// ── Request interceptor — attach access token (client-side only) ──────────────
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("access_token");
@@ -72,7 +79,6 @@ api.interceptors.response.use(
 
       if (!refreshToken) {
         isRefreshing = false;
-        // No refresh token — clear auth and let the caller handle the 401
         if (typeof window !== "undefined") {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
@@ -81,15 +87,14 @@ api.interceptors.response.use(
       }
 
       try {
-        const { data } = await axios.post(`${BASE_URL}/auth/token/refresh/`, {
-          refresh: refreshToken,
-        });
+        const { data } = await axios.post(
+          `${process.env.INTERNAL_API_URL || "http://api:8000"}/api/v1/auth/token/refresh/`,
+          { refresh: refreshToken }
+        );
 
         const newAccess: string = data.access;
         localStorage.setItem("access_token", newAccess);
-        if (data.refresh) {
-          localStorage.setItem("refresh_token", data.refresh);
-        }
+        if (data.refresh) localStorage.setItem("refresh_token", data.refresh);
 
         api.defaults.headers.common.Authorization = `Bearer ${newAccess}`;
         originalRequest.headers.Authorization = `Bearer ${newAccess}`;
