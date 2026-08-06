@@ -8,11 +8,12 @@
 #  Trigger: Manual only (workflow_dispatch)
 #
 #  Required GitHub Variables (Settings → Secrets and variables → Variables):
-#    IMAGE_REGISTRY_BASE   e.g. johnitopaisah
+#    IMAGE_REGISTRY_BASE   e.g. ghcr.io/johnitopaisah
+#
+#  Registry auth uses github.actor + the automatic GITHUB_TOKEN — no
+#  Docker Hub secrets needed.
 #
 #  Required GitHub Secrets:
-#    DOCKERHUB_USERNAME    Docker Hub username
-#    DOCKERHUB_TOKEN       Docker Hub access token
 #    STRIPE_PUBLISHABLE_KEY
 #
 #  Run order:

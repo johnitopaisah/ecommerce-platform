@@ -28,7 +28,7 @@
 | **Secret management** | Infisical (operator + auto-sync) |
 | **TLS** | cert-manager + Let's Encrypt |
 | **Ingress** | Traefik Ingress Controller |
-| **Image registry** | Docker Hub |
+| **Image registry** | GitHub Container Registry (ghcr.io) |
 | **Security scanning** | Trivy |
 
 ---
@@ -284,10 +284,10 @@ kubectl apply -f k8s/argocd/root-app.yaml
 kubectl get applications -n argocd -l app.kubernetes.io/part-of=shopnow
 ```
 
-The `dockerhub-secret` image-pull secret and the Infisical machine-identity
-credentials for the `ecommerce` namespace are created once, by hand, and are
-intentionally kept out of git — see `k8s/secrets/dockerhub-secret.yaml` and
-`k8s/infisical/infisical-secret.yaml` for the commands and CRD shape.
+Images are public on ghcr.io, so no image-pull secret is needed. The
+Infisical machine-identity credentials for the `ecommerce` namespace are
+created once, by hand, and are intentionally kept out of git — see
+`k8s/infisical/infisical-secret.yaml` for the CRD shape.
 
 ---
 
