@@ -26,9 +26,17 @@ spec:
       serviceAccountName: shopnow-admin-ui
       imagePullSecrets:
         - name: dockerhub-secret
+      securityContext:
+        runAsNonRoot: true
       initContainers:
         - name: wait-for-api
           image: busybox:1.36
+          securityContext:
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           command:
             - sh
             - -c
@@ -49,6 +57,12 @@ spec:
         - name: admin-ui
           image: johnitopaisah/ecommerce-admin-ui:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - containerPort: 3001
               name: http
@@ -83,3 +97,9 @@ spec:
           #   periodSeconds: 10
           #   timeoutSeconds: 5
           #   failureThreshold: 3
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

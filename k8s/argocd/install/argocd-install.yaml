@@ -1,17 +1,4 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# ArgoCD installation
-#
-# Apply with:
-#   kubectl apply -f k8s/argocd/install/argocd-install.yaml
-#
-# This creates the argocd namespace and installs ArgoCD from the official
-# upstream manifest. After applying, access the UI with:
-#   kubectl port-forward svc/argocd-server -n argocd 8080:443
-#   https://localhost:8080
-#   username: admin
-#   password: kubectl -n argocd get secret argocd-initial-admin-secret \
-#               -o jsonpath="{.data.password}" | base64 -d
-# ─────────────────────────────────────────────────────────────────────────────
+
 apiVersion: v1
 kind: Namespace
 metadata:

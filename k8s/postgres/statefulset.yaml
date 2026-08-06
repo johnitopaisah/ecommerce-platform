@@ -19,9 +19,21 @@ spec:
         app: shopnow
         component: postgres
     spec:
+      # fsGroup ensures the mounted PVC is group-writable by uid 70 (postgres
+      # in the official image) once we start the container directly as that
+      # uid instead of relying on the entrypoint's own root->postgres drop.
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 70
       containers:
         - name: postgres
           image: postgres:16-alpine
+          securityContext:
+            runAsUser: 70
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - containerPort: 5432
               name: postgres
@@ -43,6 +55,10 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
+            - name: tmp
+              mountPath: /tmp
+            - name: run-postgresql
+              mountPath: /var/run/postgresql
           resources:
             requests:
               memory: "256Mi"
@@ -73,6 +89,11 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: run-postgresql
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: postgres-data

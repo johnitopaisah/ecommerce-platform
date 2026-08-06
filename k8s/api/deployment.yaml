@@ -26,9 +26,19 @@ spec:
       serviceAccountName: shopnow-api
       imagePullSecrets:
         - name: dockerhub-secret
+      securityContext:
+        runAsNonRoot: true
       initContainers:
         - name: wait-for-postgres
           image: postgres:16-alpine
+          securityContext:
+            # 65534 (nobody) — these are plain client-tool checks, no need
+            # to match the target service's own uid.
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           command:
             - sh
             - -c
@@ -47,6 +57,12 @@ spec:
               memory: "32Mi"
         - name: wait-for-redis
           image: redis:7-alpine
+          securityContext:
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           command:
             - sh
             - -c
@@ -67,6 +83,13 @@ spec:
         - name: api
           image: johnitopaisah/ecommerce-api:v0.1.2
           imagePullPolicy: Always
+          securityContext:
+            # 1001 matches the "django" user the Dockerfile creates.
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - containerPort: 8000
               name: http
@@ -148,8 +171,12 @@ spec:
               mountPath: /app/media
             - name: static
               mountPath: /app/staticfiles
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: media
           emptyDir: {}
         - name: static
+          emptyDir: {}
+        - name: tmp
           emptyDir: {}
