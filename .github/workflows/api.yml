@@ -3,14 +3,12 @@
 #
 #  Stages: validate → quality (lint + test) → build → push → scan → update-manifest → summary
 #
-#  Image: <IMAGE_REGISTRY_BASE>/ecommerce-api:<tag>
+#  Image: ghcr.io/<repo-owner>/ecommerce-api:<tag>
 #  Runtime: Python 3.13 | Django REST Framework
 #
-#  Required GitHub Variables (Settings → Secrets and variables → Variables):
-#    IMAGE_REGISTRY_BASE   e.g. ghcr.io/johnitopaisah
-#
-#  Registry auth uses github.actor + the automatic GITHUB_TOKEN — no
-#  Docker Hub secrets needed.
+#  Registry base is derived from github.repository_owner — no variables
+#  or secrets to configure. Auth uses github.actor + the automatic
+#  GITHUB_TOKEN.
 # ============================================================
 
 name: API
@@ -34,7 +32,6 @@ permissions:
   security-events: write  # upload Trivy SARIF to GitHub Security tab
 
 env:
-  IMAGE:      ${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-api
   PYTHON_VER: "3.13"
 
 jobs:
@@ -80,12 +77,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Verify IMAGE_REGISTRY_BASE is set
-        run: |
-          [ -z "${{ vars.IMAGE_REGISTRY_BASE }}" ] \
-            && echo "❌ IMAGE_REGISTRY_BASE not set" && exit 1 \
-            || echo "✅ IMAGE_REGISTRY_BASE=${{ vars.IMAGE_REGISTRY_BASE }}"
 
       - name: Setup Python ${{ env.PYTHON_VER }}
         uses: actions/setup-python@v5
@@ -182,8 +173,8 @@ jobs:
           push:       true
           provenance: false
           tags: |
-            ${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-api:${{ needs.validate.outputs.tag }}
-            ${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-api:latest
+            ghcr.io/${{ github.repository_owner }}/ecommerce-api:${{ needs.validate.outputs.tag }}
+            ghcr.io/${{ github.repository_owner }}/ecommerce-api:latest
           cache-from: type=gha,scope=api
           cache-to:   type=gha,scope=api,mode=max
 
@@ -208,7 +199,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: '${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-api:${{ needs.validate.outputs.tag }}'
+          image-ref: 'ghcr.io/${{ github.repository_owner }}/ecommerce-api:${{ needs.validate.outputs.tag }}'
           format: 'table'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
@@ -219,7 +210,7 @@ jobs:
         if: always()
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: '${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-api:${{ needs.validate.outputs.tag }}'
+          image-ref: 'ghcr.io/${{ github.repository_owner }}/ecommerce-api:${{ needs.validate.outputs.tag }}'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -249,7 +240,7 @@ jobs:
       - name: Update image tag in manifest
         run: |
           TAG="${{ needs.validate.outputs.tag }}"
-          BASE="${{ vars.IMAGE_REGISTRY_BASE }}"
+          BASE="ghcr.io/${{ github.repository_owner }}"
           sed -i "s|${BASE}/ecommerce-api:.*|${BASE}/ecommerce-api:${TAG}|g" k8s/api/deployment.yaml
           echo "✅ k8s/api/deployment.yaml → ${BASE}/ecommerce-api:${TAG}"
 
@@ -292,4 +283,4 @@ jobs:
           echo "| Build & push    | $(ok $BUILD) $BUILD |" >> $GITHUB_STEP_SUMMARY
           echo "| Trivy scan      | $(ok $SCAN) $SCAN |" >> $GITHUB_STEP_SUMMARY
           echo "| Update manifest | $(ok $MANIFEST) $MANIFEST |" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-api:$TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`ghcr.io/${{ github.repository_owner }}/ecommerce-api:$TAG\`" >> $GITHUB_STEP_SUMMARY

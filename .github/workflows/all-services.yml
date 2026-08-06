@@ -7,11 +7,8 @@
 #
 #  Trigger: Manual only (workflow_dispatch)
 #
-#  Required GitHub Variables (Settings → Secrets and variables → Variables):
-#    IMAGE_REGISTRY_BASE   e.g. ghcr.io/johnitopaisah
-#
-#  Registry auth uses github.actor + the automatic GITHUB_TOKEN — no
-#  Docker Hub secrets needed.
+#  Registry base is derived from github.repository_owner — no variables
+#  to configure. Auth uses github.actor + the automatic GITHUB_TOKEN.
 #
 #  Required GitHub Secrets:
 #    STRIPE_PUBLISHABLE_KEY
@@ -90,7 +87,7 @@ jobs:
       - name: Generate release notes
         run: |
           TAG="${{ inputs.tag }}"
-          BASE="${{ vars.IMAGE_REGISTRY_BASE }}"
+          BASE="ghcr.io/${{ github.repository_owner }}"
           PREV=$(git tag --sort=-version:refname | grep -v "^${TAG}$" | head -1)
 
           LOG=$([ -n "$PREV" ] \

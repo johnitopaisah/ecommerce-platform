@@ -7,14 +7,11 @@
 #    - Manual (workflow_dispatch) — run this pipeline alone
 #    - Called  (workflow_call)    — triggered by all-services.yml
 #
-#  Image: <IMAGE_REGISTRY_BASE>/ecommerce-user-ui:<tag>
+#  Image: ghcr.io/<repo-owner>/ecommerce-user-ui:<tag>
 #  Runtime: node:20-alpine  |  Next.js standalone
 #
-#  Required GitHub Variables (Settings → Secrets and variables → Variables):
-#    IMAGE_REGISTRY_BASE              e.g. ghcr.io/johnitopaisah
-#
-#  Registry auth uses github.actor + the automatic GITHUB_TOKEN — no
-#  Docker Hub secrets needed.
+#  Registry base is derived from github.repository_owner — no variables
+#  to configure. Auth uses github.actor + the automatic GITHUB_TOKEN.
 #
 #  Required GitHub Secrets:
 #    STRIPE_PUBLISHABLE_KEY           Stripe publishable key (build-time)
@@ -41,7 +38,6 @@ permissions:
   security-events: write  # upload Trivy SARIF to GitHub Security tab
 
 env:
-  IMAGE:    ${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui
   NODE_VER: "20"
 
 jobs:
@@ -64,12 +60,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Verify IMAGE_REGISTRY_BASE is set
-        run: |
-          [ -z "${{ vars.IMAGE_REGISTRY_BASE }}" ] \
-            && echo "❌ IMAGE_REGISTRY_BASE not set" && exit 1 \
-            || echo "✅ IMAGE_REGISTRY_BASE=${{ vars.IMAGE_REGISTRY_BASE }}"
 
       - name: Setup Node ${{ env.NODE_VER }}
         uses: actions/setup-node@v4
@@ -129,8 +119,8 @@ jobs:
           build-args: |
             NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
           tags: |
-            ${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui:${{ needs.validate.outputs.tag }}
-            ${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui:latest
+            ghcr.io/${{ github.repository_owner }}/ecommerce-user-ui:${{ needs.validate.outputs.tag }}
+            ghcr.io/${{ github.repository_owner }}/ecommerce-user-ui:latest
           cache-from: type=gha,scope=user-ui
           cache-to:   type=gha,scope=user-ui,mode=max
 
@@ -155,7 +145,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: '${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui:${{ needs.validate.outputs.tag }}'
+          image-ref: 'ghcr.io/${{ github.repository_owner }}/ecommerce-user-ui:${{ needs.validate.outputs.tag }}'
           format: 'table'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
@@ -166,7 +156,7 @@ jobs:
         if: always()
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: '${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui:${{ needs.validate.outputs.tag }}'
+          image-ref: 'ghcr.io/${{ github.repository_owner }}/ecommerce-user-ui:${{ needs.validate.outputs.tag }}'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -196,7 +186,7 @@ jobs:
       - name: Update image tag in manifest
         run: |
           TAG="${{ needs.validate.outputs.tag }}"
-          BASE="${{ vars.IMAGE_REGISTRY_BASE }}"
+          BASE="ghcr.io/${{ github.repository_owner }}"
           sed -i "s|${BASE}/ecommerce-user-ui:.*|${BASE}/ecommerce-user-ui:${TAG}|g" k8s/user-ui/deployment.yaml
           echo "✅ k8s/user-ui/deployment.yaml → ${BASE}/ecommerce-user-ui:${TAG}"
 
@@ -239,4 +229,4 @@ jobs:
           echo "| Build & push     | $(ok $BUILD) $BUILD |" >> $GITHUB_STEP_SUMMARY
           echo "| Trivy scan       | $(ok $SCAN) $SCAN |" >> $GITHUB_STEP_SUMMARY
           echo "| Update manifest  | $(ok $MANIFEST) $MANIFEST |" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui:$TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`ghcr.io/${{ github.repository_owner }}/ecommerce-user-ui:$TAG\`" >> $GITHUB_STEP_SUMMARY
