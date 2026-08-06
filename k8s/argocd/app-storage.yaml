@@ -1,15 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: shopnow-api
+  name: shopnow-storage
   namespace: argocd
   labels:
-    app.kubernetes.io/name: shopnow-api
+    app.kubernetes.io/name: shopnow-storage
     app.kubernetes.io/part-of: shopnow
-    app.kubernetes.io/component: api
+    app.kubernetes.io/component: storage
     app.kubernetes.io/managed-by: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "-1"   # StorageClass needed before postgres's PVC
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -17,19 +17,13 @@ spec:
   source:
     repoURL: https://github.com/johnitopaisah/ecommerce-platform
     targetRevision: develop
-    path: k8s/api
+    path: k8s/storage
   destination:
     server: https://kubernetes.default.svc
     namespace: ecommerce
   syncPolicy:
     automated:
-      selfHeal: true   # reverts manual kubectl changes
-      prune: true      # removes resources deleted from git
+      selfHeal: true
+      prune: true
     syncOptions:
       - CreateNamespace=false
-  ignoreDifferences:
-    - group: apps
-      kind: Deployment
-      name: api
-      jsonPointers:
-        - /spec/replicas   # HPA owns this at runtime

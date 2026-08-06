@@ -39,6 +39,13 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: DB_PASSWORD
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "50m"
+              memory: "32Mi"
       containers:
         - name: migrate
           image: johnitopaisah/ecommerce-api:v0.1.1
@@ -54,6 +61,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: api-config
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           env:
             - name: SECRET_KEY
               valueFrom:

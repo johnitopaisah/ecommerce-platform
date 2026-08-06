@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: admin-ui
+  name: shopnow-admin-ui
   namespace: argocd
   labels:
-    app.kubernetes.io/name: admin-ui
+    app.kubernetes.io/name: shopnow-admin-ui
     app.kubernetes.io/part-of: shopnow
     app.kubernetes.io/component: admin-ui
     app.kubernetes.io/managed-by: argocd

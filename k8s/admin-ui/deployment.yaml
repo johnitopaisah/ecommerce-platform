@@ -38,6 +38,13 @@ spec:
                 sleep 3
               done
               echo "API is ready."
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "50m"
+              memory: "32Mi"
       containers:
         - name: admin-ui
           image: johnitopaisah/ecommerce-admin-ui:latest
