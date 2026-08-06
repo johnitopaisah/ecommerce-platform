@@ -16,11 +16,11 @@ export function formatPrice(price: string | number): string {
 export function getImageUrl(path: string | null | undefined): string {
   if (!path) return "/placeholder.svg";
   if (path.startsWith("http")) return path;
-  // In development, serve directly from Django
-  const base =
-    process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ||
-    "http://localhost:8000";
-  return `${base}${path}`;
+  // Relative paths (e.g. /media/products/x.jpg) resolve against whatever
+  // host the page was loaded from — /media/* is proxied to Django the same
+  // way /api/* is (see next.config.ts rewrites / the ingress routing in
+  // k8s/ingress). No absolute base URL needed.
+  return path;
 }
 
 export function getOrderStatusColor(status: string): string {

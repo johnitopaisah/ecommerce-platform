@@ -1,0 +1,153 @@
+# ============================================================
+#  ArgoCD — Manual Sync Trigger
+#
+#  NOTE: Under normal GitOps flow this workflow is NOT needed.
+#  Each service pipeline (api/admin-ui/user-ui) commits an
+#  updated image tag to k8s/<service>/deployment.yaml on main,
+#  and ArgoCD auto-syncs within minutes.
+#
+#  Use this workflow only to:
+#    - Force an immediate sync without waiting for a git push
+#    - Sync the root app after a new ArgoCD app is added
+#    - Recover from a failed automated sync
+#
+#  Required GitHub Secrets:
+#    KUBECONFIG_B64   base64-encoded kubeconfig
+# ============================================================
+
+name: ArgoCD — Manual Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "ArgoCD app to sync"
+        required: true
+        type: choice
+        default: shopnow-api
+        options:
+          - shopnow-root
+          - shopnow-api
+          - shopnow-admin-ui
+          - shopnow-user-ui
+          - shopnow-db
+          - shopnow-redis
+          - shopnow-infisical
+          - shopnow-cert-manager
+          - shopnow-ingress
+          - all
+
+jobs:
+
+  # ── Sync ─────────────────────────────────────────────────
+  sync:
+    name: "Sync ${{ inputs.app }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o /usr/local/bin/argocd \
+            https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+
+      - name: Login to ArgoCD
+        run: |
+          kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+          sleep 5
+          ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
+            -o jsonpath="{.data.password}" | base64 -d)
+          argocd login localhost:8080 \
+            --username admin \
+            --password "$ARGOCD_PASSWORD" \
+            --insecure \
+            --grpc-web
+
+      - name: Sync shopnow-root
+        if: inputs.app == 'shopnow-root' || inputs.app == 'all'
+        run: |
+          argocd app sync shopnow-root \
+            --insecure --grpc-web --timeout 120 || true
+
+      - name: Sync shopnow-api
+        if: inputs.app == 'shopnow-api' || inputs.app == 'all'
+        run: |
+          argocd app sync shopnow-api \
+            --insecure --grpc-web --timeout 300 --retry-limit 3
+          argocd app wait shopnow-api \
+            --insecure --grpc-web --timeout 300 --health
+
+      - name: Sync shopnow-admin-ui
+        if: inputs.app == 'shopnow-admin-ui' || inputs.app == 'all'
+        run: |
+          argocd app sync shopnow-admin-ui \
+            --insecure --grpc-web --timeout 300 --retry-limit 3
+          argocd app wait shopnow-admin-ui \
+            --insecure --grpc-web --timeout 300 --health
+
+      - name: Sync shopnow-user-ui
+        if: inputs.app == 'shopnow-user-ui' || inputs.app == 'all'
+        run: |
+          argocd app sync shopnow-user-ui \
+            --insecure --grpc-web --timeout 300 --retry-limit 3
+          argocd app wait shopnow-user-ui \
+            --insecure --grpc-web --timeout 300 --health
+
+      - name: Sync shopnow-db
+        if: inputs.app == 'shopnow-db'
+        run: |
+          argocd app sync shopnow-db \
+            --insecure --grpc-web --timeout 300
+          argocd app wait shopnow-db \
+            --insecure --grpc-web --timeout 300 --health
+
+      - name: Sync shopnow-redis
+        if: inputs.app == 'shopnow-redis'
+        run: |
+          argocd app sync shopnow-redis \
+            --insecure --grpc-web --timeout 300
+          argocd app wait shopnow-redis \
+            --insecure --grpc-web --timeout 300 --health
+
+      - name: Sync shopnow-infisical
+        if: inputs.app == 'shopnow-infisical' || inputs.app == 'all'
+        run: |
+          argocd app sync shopnow-infisical \
+            --insecure --grpc-web --timeout 120 || true
+
+      - name: Sync shopnow-cert-manager
+        if: inputs.app == 'shopnow-cert-manager' || inputs.app == 'all'
+        run: |
+          argocd app sync shopnow-cert-manager \
+            --insecure --grpc-web --timeout 120 || true
+
+      - name: Sync shopnow-ingress
+        if: inputs.app == 'shopnow-ingress' || inputs.app == 'all'
+        run: |
+          argocd app sync shopnow-ingress \
+            --insecure --grpc-web --timeout 120 || true
+
+      - name: Print app status
+        if: always()
+        run: |
+          argocd app list --insecure --grpc-web || true
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## ArgoCD Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Trigger | \`${{ github.event_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch  | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit  | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| App     | \`${{ inputs.app }}\` |" >> $GITHUB_STEP_SUMMARY

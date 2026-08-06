@@ -12,9 +12,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build args become env vars at build time for Next.js public vars
-ARG NEXT_PUBLIC_API_URL=http://localhost/api/v1
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_placeholder
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 
 RUN npm run build

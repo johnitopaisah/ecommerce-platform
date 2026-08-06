@@ -1,124 +1,239 @@
-name: User UI — Build, Scan & Push
+# ============================================================
+#  User UI — CI Pipeline
+#
+#  Stages: validate → quality (lint + typecheck) → build → push → scan → update-manifest → summary
+#
+#  Trigger:
+#    - Manual (workflow_dispatch) — run this pipeline alone
+#    - Called  (workflow_call)    — triggered by all-services.yml
+#
+#  Image: <IMAGE_REGISTRY_BASE>/ecommerce-user-ui:<tag>
+#  Runtime: node:20-alpine  |  Next.js standalone
+#
+#  Required GitHub Variables (Settings → Secrets and variables → Variables):
+#    IMAGE_REGISTRY_BASE              e.g. johnitopaisah
+#
+#  Required GitHub Secrets:
+#    DOCKERHUB_USERNAME               Docker Hub username
+#    DOCKERHUB_TOKEN                  Docker Hub access token
+#    STRIPE_PUBLISHABLE_KEY           Stripe publishable key (build-time)
+# ============================================================
+
+name: User UI
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to build and push (e.g. v1.0.0 or v1.0.0-rc)"
+        description: "Tag  e.g. v1.0.0 | v1.0.0-rc | v1.0.0-rc1"
         required: true
         type: string
   workflow_call:
     inputs:
       tag:
-        description: "Release tag to build and push (e.g. v1.0.0 or v1.0.0-rc)"
         required: true
         type: string
 
+permissions:
+  contents: write         # write needed for manifest update commit
+  packages: write
+  security-events: write  # upload Trivy SARIF to GitHub Security tab
+
 env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/ecommerce-user-ui
-  NODE_VERSION: "20"
+  IMAGE:    ${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui
+  NODE_VER: "20"
 
 jobs:
-  test:
-    name: Lint & build check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag }}
 
-      - uses: actions/setup-node@v4
+  # ── 1. Validate tag ──────────────────────────────────────
+  validate:
+    name: Validate tag
+    uses: ./.github/workflows/_validate-tag.yml
+    with:
+      tag: ${{ inputs.tag }}
+
+  # ── 2. Lint & type-check ─────────────���───────────────────
+  quality:
+    name: Lint & typecheck
+    needs: validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: user-ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify IMAGE_REGISTRY_BASE is set
+        run: |
+          [ -z "${{ vars.IMAGE_REGISTRY_BASE }}" ] \
+            && echo "❌ IMAGE_REGISTRY_BASE not set" && exit 1 \
+            || echo "✅ IMAGE_REGISTRY_BASE=${{ vars.IMAGE_REGISTRY_BASE }}"
+
+      - name: Setup Node ${{ env.NODE_VER }}
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ env.NODE_VER }}
           cache: npm
           cache-dependency-path: user-ui/package-lock.json
 
-      - name: Install dependencies
-        working-directory: user-ui
+      # npm ci: deterministic, fast, uses exact versions from package-lock.json.
+      - name: Install dependencies (npm ci)
         run: npm ci --frozen-lockfile
 
       - name: ESLint
-        working-directory: user-ui
         run: npm run lint
 
-      - name: Next.js build
-        working-directory: user-ui
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+
+      - name: Next.js build check
         env:
-          # INTERNAL_API_URL is a runtime env var — not needed at build time
-          # NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is the only build-time var needed
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_dummy
         run: npm run build
 
-  build-and-push:
-    name: Build, scan & push
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag }}
-
-      - name: Validate tag format
+      - name: Check no hardcoded localhost in source
         run: |
-          if [[ ! "${{ inputs.tag }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9._-]+)?$ ]]; then
-            echo "ERROR: Tag must follow semver: v1.2.3 or v1.2.3-rc (got '${{ inputs.tag }}')"
+          if grep -r "localhost:8000\|localhost:4000" src/ --include="*.ts" --include="*.tsx" -l 2>/dev/null; then
+            echo "❌ Found hardcoded localhost — must use env var"
             exit 1
           fi
+          echo "✅ No hardcoded localhost found"
 
-      - uses: docker/setup-buildx-action@v3
+  # ── 3. Build & push ──────────────────────────────────────
+  build-push:
+    name: Build & push
+    needs: [validate, quality]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: docker/login-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build image (for scanning)
+      - name: Build & push image
         uses: docker/build-push-action@v5
         with:
-          context: ./user-ui
-          file: ./user-ui/Dockerfile
-          push: false
-          load: true
-          tags: ${{ env.IMAGE_NAME }}:${{ inputs.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_placeholder
-
-      - name: Scan with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}:${{ inputs.tag }}
-          format: table
-          exit-code: 0
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
-          output: trivy-user-ui-report.txt
-
-      - name: Upload scan report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: trivy-user-ui-report-${{ inputs.tag }}
-          path: trivy-user-ui-report.txt
-          retention-days: 90
-
-      - name: Push to Docker Hub
-        uses: docker/build-push-action@v5
-        with:
-          context: ./user-ui
-          file: ./user-ui/Dockerfile
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ inputs.tag }}
-            ${{ env.IMAGE_NAME }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          context:    ./user-ui
+          push:       true
+          provenance: false
           build-args: |
             NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          tags: |
+            ${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui:${{ needs.validate.outputs.tag }}
+            ${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui:latest
+          cache-from: type=gha,scope=user-ui
+          cache-to:   type=gha,scope=user-ui,mode=max
 
-      - name: Summary
+  # ── 4. Trivy image scan ──────────────────────────────────
+  scan:
+    name: Scan image
+    needs: [validate, build-push]
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: '${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui:${{ needs.validate.outputs.tag }}'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          ignore-unfixed: true
+          trivyignores: user-ui/.trivyignore
+
+      - name: Run Trivy vulnerability scanner (SARIF report)
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: '${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui:${{ needs.validate.outputs.tag }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+          ignore-unfixed: true
+          trivyignores: user-ui/.trivyignore
+
+      - name: Upload results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ── 5. Update manifest ───────────────────────────────────
+  update-manifest:
+    name: Update k8s manifest
+    needs: [validate, scan]
+    runs-on: ubuntu-latest
+    if: needs.scan.result == 'success'
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update image tag in manifest
         run: |
-          echo "## User UI Image Published" >> $GITHUB_STEP_SUMMARY
-          echo "| Tag | \`${{ inputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          TAG="${{ needs.validate.outputs.tag }}"
+          BASE="${{ vars.IMAGE_REGISTRY_BASE }}"
+          sed -i "s|${BASE}/ecommerce-user-ui:.*|${BASE}/ecommerce-user-ui:${TAG}|g" k8s/user-ui/deployment.yaml
+          echo "✅ k8s/user-ui/deployment.yaml → ${BASE}/ecommerce-user-ui:${TAG}"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          TAG="${{ needs.validate.outputs.tag }}"
+          git add k8s/user-ui/deployment.yaml
+          git diff --cached --quiet && echo "No manifest change needed" && exit 0
+          git commit -m "chore: bump user-ui image to ${TAG} [skip ci]"
+          PUSHED=false
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin develop && git push origin develop && { PUSHED=true; break; }
+            echo "Push attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+          [ "$PUSHED" = "true" ] || { echo "❌ Failed to push after 5 attempts"; exit 1; }
+          echo "✅ Manifest updated — ArgoCD will sync shortly"
+
+  # ── 6. Summary ──────���────────────────────────────────────
+  summary:
+    name: Summary
+    needs: [validate, quality, build-push, scan, update-manifest]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Write summary
+        run: |
+          TAG="${{ needs.validate.outputs.tag }}"
+          QUALITY="${{ needs.quality.result }}"
+          BUILD="${{ needs.build-push.result }}"
+          SCAN="${{ needs.scan.result }}"
+          MANIFEST="${{ needs.update-manifest.result }}"
+          ok() { [ "$1" = "success" ] && echo "✅" || ( [ "$1" = "skipped" ] && echo "⏭️" || echo "❌" ); }
+          echo "## User UI pipeline" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & typecheck | $(ok $QUALITY) $QUALITY |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build & push     | $(ok $BUILD) $BUILD |" >> $GITHUB_STEP_SUMMARY
+          echo "| Trivy scan       | $(ok $SCAN) $SCAN |" >> $GITHUB_STEP_SUMMARY
+          echo "| Update manifest  | $(ok $MANIFEST) $MANIFEST |" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ vars.IMAGE_REGISTRY_BASE }}/ecommerce-user-ui:$TAG\`" >> $GITHUB_STEP_SUMMARY
