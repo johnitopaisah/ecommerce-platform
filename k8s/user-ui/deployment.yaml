@@ -24,8 +24,6 @@ spec:
         component: user-ui
     spec:
       serviceAccountName: shopnow-user-ui
-      imagePullSecrets:
-        - name: dockerhub-secret
       securityContext:
         runAsNonRoot: true
       initContainers:
@@ -55,7 +53,7 @@ spec:
               memory: "32Mi"
       containers:
         - name: user-ui
-          image: johnitopaisah/ecommerce-user-ui:latest
+          image: ghcr.io/johnitopaisah/ecommerce-user-ui:latest
           imagePullPolicy: Always
           securityContext:
             # 1001 matches the "nextjs" user the Dockerfile creates.

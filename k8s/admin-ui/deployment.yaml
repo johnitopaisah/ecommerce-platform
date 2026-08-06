@@ -24,8 +24,6 @@ spec:
         component: admin-ui
     spec:
       serviceAccountName: shopnow-admin-ui
-      imagePullSecrets:
-        - name: dockerhub-secret
       securityContext:
         runAsNonRoot: true
       initContainers:
@@ -55,7 +53,7 @@ spec:
               memory: "32Mi"
       containers:
         - name: admin-ui
-          image: johnitopaisah/ecommerce-admin-ui:latest
+          image: ghcr.io/johnitopaisah/ecommerce-admin-ui:latest
           imagePullPolicy: Always
           securityContext:
             runAsUser: 1001

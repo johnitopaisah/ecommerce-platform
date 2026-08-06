@@ -18,8 +18,6 @@ spec:
         job-type: migrate
     spec:
       restartPolicy: OnFailure
-      imagePullSecrets:
-        - name: dockerhub-secret
       securityContext:
         runAsNonRoot: true
       initContainers:
@@ -56,7 +54,7 @@ spec:
               memory: "32Mi"
       containers:
         - name: migrate
-          image: johnitopaisah/ecommerce-api:v0.1.2
+          image: ghcr.io/johnitopaisah/ecommerce-api:v0.1.2
           securityContext:
             runAsUser: 1001
             allowPrivilegeEscalation: false
