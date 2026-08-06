@@ -15,7 +15,7 @@ msgpack==1.2.1   # transitive dep of redis — pinned to patch GHSA-6v7p-g79w-89
 djangorestframework-simplejwt==5.3.1
 
 # CORS
-django-cors-headers==4.6.0
+django-cors-headers==4.9.0
 
 # Environment variables
 python-dotenv==1.0.1
