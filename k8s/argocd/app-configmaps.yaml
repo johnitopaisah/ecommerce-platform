@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shopnow-configmaps
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: shopnow-configmaps
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/component: configmaps
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"   # api-config needed before the api Deployment (wave 1)
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: shopnow
+  source:
+    repoURL: https://github.com/johnitopaisah/ecommerce-platform
+    targetRevision: develop
+    path: k8s/configmaps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=false

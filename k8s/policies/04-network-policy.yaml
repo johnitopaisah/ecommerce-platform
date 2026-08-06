@@ -9,9 +9,12 @@
 #    kube-system → CoreDNS (DNS resolution for all pods)
 #    ecommerce   → all workloads (api, user-ui, admin-ui, postgres, redis)
 #
-#  NOTE: kindnet (current CNI) does not enforce NetworkPolicy.
-#  These rules will take effect when the CNI is switched to
-#  Calico or Cilium. They are correct for production use.
+#  NOTE: contrary to what's assumed elsewhere in this cluster's docs,
+#  kindnet DOES enforce NetworkPolicy here — confirmed the hard way
+#  when default-deny-all silently blocked Traefik from reaching
+#  cert-manager's ephemeral HTTP-01 solver pods (rule 6 below), which
+#  stalled TLS issuance for 40+ minutes with no obvious error pointing
+#  at NetworkPolicy as the cause.
 # ============================================================
 
 # ── 0. Default deny-all ──────────────────────────────────────
@@ -331,3 +334,36 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+
+---
+
+# ── 6. cert-manager ACME HTTP-01 solver ─────────────────────
+# Ephemeral pods cert-manager spins up per Certificate to answer
+# /.well-known/acme-challenge/<token> requests, identified by the
+# standard acme.cert-manager.io/http01-solver label rather than a
+# fixed name (a new pod is created for every issuance/renewal).
+# Ingress:  Traefik only, on the solver's listen port (8089)
+# Egress:   none — the solver never initiates outbound connections
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-acme-http01-solver
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/part-of: shopnow
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes:
+    - Ingress
+
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+      ports:
+        - protocol: TCP
+          port: 8089
