@@ -10,7 +10,10 @@ data:
   # Use local settings — same as production but without HTTPS enforcement
   DJANGO_SETTINGS_MODULE: "config.settings.local"
   DEBUG: "False"
-  ALLOWED_HOSTS: "shopnow.johnisah.com,shopnow.local,localhost,127.0.0.1"
+  # "api" is the in-cluster Service DNS name — Next.js's server-side proxy
+  # (INTERNAL_API_URL=http://api:8000) sends Host: api, distinct from the
+  # public Host: shopnow.johnisah.com used by browser-facing requests.
+  ALLOWED_HOSTS: "shopnow.johnisah.com,api,shopnow.local,localhost,127.0.0.1"
 
   # Database connection
   DATABASE_URL: "postgres://ecom_user:ecom_pass@postgres:5432/ecommerce_db"
