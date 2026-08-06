@@ -122,6 +122,8 @@ spec:
           port: 443
         - protocol: TCP
           port: 465
+        - protocol: TCP
+          port: 587   # SMTP STARTTLS — EMAIL_PORT in api-config.yaml, used for account activation emails
 
 ---
 
