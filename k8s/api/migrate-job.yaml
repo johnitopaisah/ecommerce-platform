@@ -63,7 +63,7 @@ spec:
               memory: "32Mi"
       containers:
         - name: migrate
-          image: ghcr.io/johnitopaisah/ecommerce-api:v0.1.4-rc1
+          image: ghcr.io/johnitopaisah/ecommerce-api:v0.1.4-rc2
           securityContext:
             runAsUser: 1001
             allowPrivilegeEscalation: false
