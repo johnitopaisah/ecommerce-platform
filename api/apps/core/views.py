@@ -7,7 +7,7 @@ GET /api/v1/ready/    — readiness probe (are DB + cache reachable?)
 
 from django.db import connection, OperationalError as DbError
 from django_redis import get_redis_connection
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
@@ -17,6 +17,11 @@ from drf_spectacular.utils import extend_schema
 @extend_schema(tags=['health'])
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@throttle_classes([])  # kube-probe hits this every ~10-15s — the global
+# DEFAULT_THROTTLE_RATES['anon'] (100/hour) would 429 it within minutes and
+# permanently fail the pod's liveness/readiness checks. Infra health checks
+# are never a brute-force/enumeration target, so exempt entirely rather
+# than raising the global anon rate for everyone.
 def health(request):
     """Liveness probe — always returns 200 if the process is running."""
     return Response({'status': 'ok'})
@@ -25,6 +30,7 @@ def health(request):
 @extend_schema(tags=['health'])
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def ready(request):
     """
     Readiness probe — checks DB and Redis connectivity.
