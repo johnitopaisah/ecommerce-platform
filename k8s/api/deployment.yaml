@@ -167,8 +167,15 @@ spec:
                   key: SENTRY_DSN
                   optional: true
           resources:
+            # requests.memory raised 256Mi->384Mi: observed steady-state usage
+            # is ~300-314Mi (google-cloud-storage/sentry-sdk/django-otp added
+            # real import-time memory) — 256Mi meant the HPA's memory
+            # percentage (usage/request) was pinned above 100% at idle,
+            # triggering runaway scale-up (hit 6/10 replicas, exhausted the
+            # namespace ResourceQuota, and blocked the migrate PreSync hook
+            # from ever getting scheduled).
             requests:
-              memory: "256Mi"
+              memory: "384Mi"
               cpu: "250m"
             limits:
               memory: "512Mi"
