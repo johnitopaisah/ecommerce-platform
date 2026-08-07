@@ -95,7 +95,7 @@ export default function Navbar() {
                       <Link href="/account/wishlist" onClick={() => setUserMenuOpen(false)}
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Wishlist</Link>
                       {user?.is_staff && (
-                        <a href="/admin-panel" onClick={() => setUserMenuOpen(false)}
+                        <a href="/admin-panel/login" onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-1.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                           <ShieldCheck size={14} />
                           Admin Panel
