@@ -79,7 +79,7 @@ spec:
               memory: "32Mi"
       containers:
         - name: api
-          image: ghcr.io/johnitopaisah/ecommerce-api:v0.1.4-rc2
+          image: ghcr.io/johnitopaisah/ecommerce-api:v0.1.4-rc5
           imagePullPolicy: Always
           securityContext:
             # 1001 matches the "django" user the Dockerfile creates.
