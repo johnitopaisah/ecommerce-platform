@@ -1,8 +1,11 @@
 import { productsApi, categoriesApi } from "@/lib/services";
 import ProductGrid from "@/components/products/ProductGrid";
 import ProductFilters from "@/components/products/ProductFilters";
+import Pagination from "@/components/products/Pagination";
 import type { Metadata } from "next";
 import type { Product, Category } from "@/types";
+
+const PAGE_SIZE = 20;
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "All Products" };
@@ -65,6 +68,13 @@ export default async function ProductsPage({ searchParams }: Props) {
           <ProductGrid
             products={products}
             emptyMessage="No products match your filters."
+          />
+          <Pagination
+            currentPage={params.page ? Number(params.page) : 1}
+            totalCount={count}
+            pageSize={PAGE_SIZE}
+            basePath="/products"
+            searchParams={params}
           />
         </div>
       </div>
