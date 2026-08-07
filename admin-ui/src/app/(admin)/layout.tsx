@@ -6,13 +6,18 @@ import { useAuthStore } from "@/store/authStore";
 import Sidebar from "@/components/layout/Sidebar";
 
 export default function AdminShellLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, _hasHydrated } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace("/login");
-  }, [isAuthenticated, router]);
+    // Zustand's persisted isAuthenticated starts false for one render tick
+    // before rehydrating from localStorage — redirecting on that first
+    // render (before _hasHydrated flips true) kicked every logged-in admin
+    // back to /login on any fresh page load, refresh, or direct URL open.
+    if (_hasHydrated && !isAuthenticated) router.replace("/login");
+  }, [_hasHydrated, isAuthenticated, router]);
 
+  if (!_hasHydrated) return null;
   if (!isAuthenticated) return null;
 
   return (
