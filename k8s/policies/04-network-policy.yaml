@@ -125,6 +125,19 @@ spec:
         - protocol: TCP
           port: 587   # SMTP STARTTLS — EMAIL_PORT in api-config.yaml, used for account activation emails
 
+    # GCE metadata server — plain HTTP on port 80, used by google-auth to
+    # fetch Application Default Credentials for the GCS storage backend
+    # (USE_GCS). Confirmed live: without this, collectstatic's GCS client
+    # init hangs until TransportError, silently swallowed by the migrate
+    # Job's script (no `set -e`), so the Job reports Complete without
+    # actually having written static files to the bucket.
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.254/32
+      ports:
+        - protocol: TCP
+          port: 80
+
 ---
 
 # ── 2. User UI ───────────────────────────────────────────────

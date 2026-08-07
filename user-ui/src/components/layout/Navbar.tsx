@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, User, Menu, X, Search } from "lucide-react";
+import { ShoppingCart, User, Menu, X, Search, ShieldCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useBasketStore } from "@/store/basketStore";
@@ -80,6 +80,13 @@ export default function Navbar() {
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Profile</Link>
                       <Link href="/account/orders" onClick={() => setUserMenuOpen(false)}
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Orders</Link>
+                      {user?.is_staff && (
+                        <a href="/admin-panel" onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-1.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                          <ShieldCheck size={14} />
+                          Admin Panel
+                        </a>
+                      )}
                       <hr className="border-gray-100 my-1" />
                       <button onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Sign out</button>

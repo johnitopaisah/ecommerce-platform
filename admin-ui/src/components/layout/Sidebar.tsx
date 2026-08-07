@@ -3,73 +3,186 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard, Package, Tag, ShoppingBag,
-  Users, LogOut, ChevronRight,
+  LayoutDashboard, Package, Tag, ShoppingBag, Users,
+  LogOut, ChevronRight, ChevronsLeft, ChevronsRight,
+  Store, ShieldCheck,
 } from "lucide-react";
+import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/products", label: "Products", icon: Package },
-  { href: "/categories", label: "Categories", icon: Tag },
-  { href: "/orders", label: "Orders", icon: ShoppingBag },
-  { href: "/users", label: "Users", icon: Users },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+}
+
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
+const SECTIONS: NavSection[] = [
+  {
+    label: "Overview",
+    items: [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
+  },
+  {
+    label: "Catalog",
+    items: [
+      { href: "/products", label: "Products", icon: Package },
+      { href: "/categories", label: "Categories", icon: Tag },
+    ],
+  },
+  {
+    label: "Sales",
+    items: [{ href: "/orders", label: "Orders", icon: ShoppingBag }],
+  },
+  {
+    label: "People",
+    items: [{ href: "/users", label: "Customers", icon: Users }],
+  },
 ];
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const [collapsed, setCollapsed] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     router.push("/login");
   };
 
+  const displayName = user?.full_name?.trim() || user?.user_name || "Admin";
+
   return (
-    <aside className="w-60 shrink-0 bg-gray-900 text-white flex flex-col min-h-screen">
+    <aside
+      className={cn(
+        "shrink-0 bg-gray-900 text-white flex flex-col min-h-screen transition-all duration-200",
+        collapsed ? "w-[72px]" : "w-64"
+      )}
+    >
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-gray-800">
-        <p className="text-lg font-bold">ShopNow</p>
-        <p className="text-xs text-gray-400 mt-0.5">Admin Panel</p>
+      <div className={cn("flex items-center border-b border-gray-800 px-4 py-5", collapsed && "justify-center px-2")}>
+        <div className="w-8 h-8 rounded-lg bg-white text-gray-900 flex items-center justify-center font-bold text-sm shrink-0">
+          S
+        </div>
+        {!collapsed && (
+          <div className="ml-3 min-w-0">
+            <p className="text-sm font-bold leading-tight truncate">ShopNow</p>
+            <p className="text-[11px] text-gray-400 leading-tight">Admin Panel</p>
+          </div>
+        )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                active
-                  ? "bg-white/10 text-white"
-                  : "text-gray-400 hover:bg-white/5 hover:text-white"
-              )}
-            >
-              <Icon size={17} />
-              {label}
-              {active && <ChevronRight size={14} className="ml-auto opacity-60" />}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+        {SECTIONS.map((section) => (
+          <div key={section.label}>
+            {!collapsed && (
+              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                {section.label}
+              </p>
+            )}
+            <div className="space-y-1">
+              {section.items.map(({ href, label, icon: Icon }) => {
+                const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    title={collapsed ? label : undefined}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      collapsed && "justify-center px-0",
+                      active
+                        ? "bg-white/10 text-white"
+                        : "text-gray-400 hover:bg-white/5 hover:text-white"
+                    )}
+                  >
+                    <Icon size={17} className="shrink-0" />
+                    {!collapsed && (
+                      <>
+                        <span className="truncate">{label}</span>
+                        {active && <ChevronRight size={14} className="ml-auto opacity-60 shrink-0" />}
+                      </>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
+
+      {/* View storefront */}
+      <div className="px-3 pb-2">
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          title={collapsed ? "View storefront" : undefined}
+          className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition-colors border border-dashed border-gray-800",
+            collapsed && "justify-center px-0"
+          )}
+        >
+          <Store size={17} className="shrink-0" />
+          {!collapsed && <span className="truncate">View storefront</span>}
+        </a>
+      </div>
+
+      {/* Collapse toggle */}
+      <div className="px-3 pb-2">
+        <button
+          onClick={() => setCollapsed((v) => !v)}
+          className={cn(
+            "flex items-center gap-3 w-full px-3 py-2 rounded-lg text-xs font-medium text-gray-500 hover:bg-white/5 hover:text-gray-300 transition-colors",
+            collapsed && "justify-center px-0"
+          )}
+        >
+          {collapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+          {!collapsed && "Collapse"}
+        </button>
+      </div>
 
       {/* User + logout */}
       <div className="px-3 py-4 border-t border-gray-800">
-        <div className="px-3 py-2 mb-2">
-          <p className="text-sm font-medium text-white truncate">{user?.full_name || user?.user_name}</p>
-          <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+        <div className={cn("flex items-center gap-3 px-3 py-2 mb-2", collapsed && "justify-center px-0")}>
+          <div className="w-8 h-8 rounded-full bg-gray-700 text-white flex items-center justify-center text-xs font-semibold shrink-0">
+            {initials(displayName)}
+          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-medium text-white truncate">{displayName}</p>
+              </div>
+              <p className="text-[11px] text-gray-400 truncate flex items-center gap-1">
+                <ShieldCheck size={11} className="shrink-0" />
+                Administrator
+              </p>
+            </div>
+          )}
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-white/5 hover:text-white transition-colors"
+          title={collapsed ? "Sign out" : undefined}
+          className={cn(
+            "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-white/5 hover:text-white transition-colors",
+            collapsed && "justify-center px-0"
+          )}
         >
-          <LogOut size={17} />
-          Sign out
+          <LogOut size={17} className="shrink-0" />
+          {!collapsed && "Sign out"}
         </button>
       </div>
     </aside>

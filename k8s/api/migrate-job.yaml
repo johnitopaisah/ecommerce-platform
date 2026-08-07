@@ -74,6 +74,10 @@ spec:
             - sh
             - -c
             - |
+              set -e
+              # Without set -e, a failing step (confirmed live: collectstatic
+              # failing its GCS client init) just falls through to the next
+              # line and the Job still reports Complete/exit 0.
               echo "Running migrations..."
               python manage.py migrate --noinput
               echo "Collecting static files..."
