@@ -1,211 +1,211 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: api
-  namespace: ecommerce
-  labels:
-    app: shopnow
-    component: api
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: shopnow
-      component: api
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
-  template:
-    metadata:
-      labels:
-        app: shopnow
-        component: api
-    spec:
-      serviceAccountName: shopnow-api
-      securityContext:
-        runAsNonRoot: true
-      initContainers:
-        - name: wait-for-postgres
-          image: postgres:16-alpine
-          securityContext:
-            # 65534 (nobody) — these are plain client-tool checks, no need
-            # to match the target service's own uid.
-            runAsUser: 65534
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
-          command:
-            - sh
-            - -c
-            - |
-              until pg_isready -h postgres -p 5432 -U ecom_user; do
-                echo "Waiting for postgres..."
-                sleep 2
-              done
-              echo "Postgres ready."
-          resources:
-            requests:
-              cpu: "10m"
-              memory: "16Mi"
-            limits:
-              cpu: "50m"
-              memory: "32Mi"
-        - name: wait-for-redis
-          image: redis:7-alpine
-          securityContext:
-            runAsUser: 65534
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
-          command:
-            - sh
-            - -c
-            - |
-              until redis-cli -h redis ping | grep -q PONG; do
-                echo "Waiting for redis..."
-                sleep 2
-              done
-              echo "Redis ready."
-          resources:
-            requests:
-              cpu: "10m"
-              memory: "16Mi"
-            limits:
-              cpu: "50m"
-              memory: "32Mi"
-      containers:
-        - name: api
-          image: ghcr.io/johnitopaisah/ecommerce-api:v0.1.4-rc2
-          imagePullPolicy: Always
-          securityContext:
-            # 1001 matches the "django" user the Dockerfile creates.
-            runAsUser: 1001
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
-          ports:
-            - containerPort: 8000
-              name: http
-          envFrom:
-            - configMapRef:
-                name: api-config
-          env:
-            - name: SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: SECRET_KEY
-            - name: DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: DB_USER
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: DB_PASSWORD
-            - name: EMAIL_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: EMAIL_HOST
-            - name: EMAIL_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: EMAIL_PORT
-            - name: EMAIL_USE_TLS
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: EMAIL_USE_TLS
-            - name: EMAIL_USE_SSL
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: EMAIL_USE_SSL
-            - name: EMAIL_HOST_USER
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: EMAIL_HOST_USER
-            - name: EMAIL_HOST_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: EMAIL_HOST_PASSWORD
-            - name: DEFAULT_FROM_EMAIL
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: DEFAULT_FROM_EMAIL
-            - name: STRIPE_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: STRIPE_SECRET_KEY
-            - name: STRIPE_PUBLISHABLE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: STRIPE_PUBLISHABLE_KEY
-            - name: STRIPE_ENDPOINT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: STRIPE_ENDPOINT_SECRET
-            - name: SENTRY_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: api-secret
-                  key: SENTRY_DSN
-                  optional: true
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
-          livenessProbe:
-            httpGet:
-              path: /api/v1/health/
-              port: 8000
-              httpHeaders:
-                - name: Host
-                  value: localhost
-            initialDelaySeconds: 40
-            periodSeconds: 15
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /api/v1/ready/
-              port: 8000
-              httpHeaders:
-                - name: Host
-                  value: localhost
-            initialDelaySeconds: 20
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
-          volumeMounts:
-            - name: media
-              mountPath: /app/media
-            - name: static
-              mountPath: /app/staticfiles
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: media
-          emptyDir: {}
-        - name: static
-          emptyDir: {}
-        - name: tmp
-          emptyDir: {}
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: api
+#   namespace: ecommerce
+#   labels:
+#     app: shopnow
+#     component: api
+# spec:
+#   replicas: 2
+#   selector:
+#     matchLabels:
+#       app: shopnow
+#       component: api
+#   strategy:
+#     type: RollingUpdate
+#     rollingUpdate:
+#       maxSurge: 1
+#       maxUnavailable: 0
+#   template:
+#     metadata:
+#       labels:
+#         app: shopnow
+#         component: api
+#     spec:
+#       serviceAccountName: shopnow-api
+#       securityContext:
+#         runAsNonRoot: true
+#       initContainers:
+#         - name: wait-for-postgres
+#           image: postgres:16-alpine
+#           securityContext:
+#             # 65534 (nobody) — these are plain client-tool checks, no need
+#             # to match the target service's own uid.
+#             runAsUser: 65534
+#             allowPrivilegeEscalation: false
+#             readOnlyRootFilesystem: true
+#             capabilities:
+#               drop: ["ALL"]
+#           command:
+#             - sh
+#             - -c
+#             - |
+#               until pg_isready -h postgres -p 5432 -U ecom_user; do
+#                 echo "Waiting for postgres..."
+#                 sleep 2
+#               done
+#               echo "Postgres ready."
+#           resources:
+#             requests:
+#               cpu: "10m"
+#               memory: "16Mi"
+#             limits:
+#               cpu: "50m"
+#               memory: "32Mi"
+#         - name: wait-for-redis
+#           image: redis:7-alpine
+#           securityContext:
+#             runAsUser: 65534
+#             allowPrivilegeEscalation: false
+#             readOnlyRootFilesystem: true
+#             capabilities:
+#               drop: ["ALL"]
+#           command:
+#             - sh
+#             - -c
+#             - |
+#               until redis-cli -h redis ping | grep -q PONG; do
+#                 echo "Waiting for redis..."
+#                 sleep 2
+#               done
+#               echo "Redis ready."
+#           resources:
+#             requests:
+#               cpu: "10m"
+#               memory: "16Mi"
+#             limits:
+#               cpu: "50m"
+#               memory: "32Mi"
+#       containers:
+#         - name: api
+#           image: ghcr.io/johnitopaisah/ecommerce-api:v0.1.4-rc2
+#           imagePullPolicy: Always
+#           securityContext:
+#             # 1001 matches the "django" user the Dockerfile creates.
+#             runAsUser: 1001
+#             allowPrivilegeEscalation: false
+#             readOnlyRootFilesystem: true
+#             capabilities:
+#               drop: ["ALL"]
+#           ports:
+#             - containerPort: 8000
+#               name: http
+#           envFrom:
+#             - configMapRef:
+#                 name: api-config
+#           env:
+#             - name: SECRET_KEY
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: SECRET_KEY
+#             - name: DB_USER
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: DB_USER
+#             - name: DB_PASSWORD
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: DB_PASSWORD
+#             - name: EMAIL_HOST
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: EMAIL_HOST
+#             - name: EMAIL_PORT
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: EMAIL_PORT
+#             - name: EMAIL_USE_TLS
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: EMAIL_USE_TLS
+#             - name: EMAIL_USE_SSL
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: EMAIL_USE_SSL
+#             - name: EMAIL_HOST_USER
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: EMAIL_HOST_USER
+#             - name: EMAIL_HOST_PASSWORD
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: EMAIL_HOST_PASSWORD
+#             - name: DEFAULT_FROM_EMAIL
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: DEFAULT_FROM_EMAIL
+#             - name: STRIPE_SECRET_KEY
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: STRIPE_SECRET_KEY
+#             - name: STRIPE_PUBLISHABLE_KEY
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: STRIPE_PUBLISHABLE_KEY
+#             - name: STRIPE_ENDPOINT_SECRET
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: STRIPE_ENDPOINT_SECRET
+#             - name: SENTRY_DSN
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: api-secret
+#                   key: SENTRY_DSN
+#                   optional: true
+#           resources:
+#             requests:
+#               memory: "256Mi"
+#               cpu: "250m"
+#             limits:
+#               memory: "512Mi"
+#               cpu: "500m"
+#           livenessProbe:
+#             httpGet:
+#               path: /api/v1/health/
+#               port: 8000
+#               httpHeaders:
+#                 - name: Host
+#                   value: localhost
+#             initialDelaySeconds: 40
+#             periodSeconds: 15
+#             timeoutSeconds: 5
+#             failureThreshold: 3
+#           readinessProbe:
+#             httpGet:
+#               path: /api/v1/ready/
+#               port: 8000
+#               httpHeaders:
+#                 - name: Host
+#                   value: localhost
+#             initialDelaySeconds: 20
+#             periodSeconds: 10
+#             timeoutSeconds: 5
+#             failureThreshold: 3
+#           volumeMounts:
+#             - name: media
+#               mountPath: /app/media
+#             - name: static
+#               mountPath: /app/staticfiles
+#             - name: tmp
+#               mountPath: /tmp
+#       volumes:
+#         - name: media
+#           emptyDir: {}
+#         - name: static
+#           emptyDir: {}
+#         - name: tmp
+#           emptyDir: {}
