@@ -87,3 +87,6 @@ images-dir/
 k8s/infisical/infisical-auth-secret.yaml
 # Old static secrets file — replaced by Infisical
 k8s/secrets/api-secret.yaml
+
+# ── Personal working notes — not project history ─────────────────────────────
+TODO.md
