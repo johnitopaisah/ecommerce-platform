@@ -154,6 +154,14 @@ def admin_order_status_update(request, order_number):
         )
     serializer = OrderStatusUpdateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    old_status = order.status
     order.status = serializer.validated_data['status']
     order.save(update_fields=['status'])
+
+    from apps.core.audit import log_admin_action
+    log_admin_action(
+        request, 'order_status_update', f'Order #{order.order_number}',
+        {'from': old_status, 'to': order.status},
+    )
+
     return Response(OrderSerializer(order).data)

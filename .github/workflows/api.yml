@@ -89,7 +89,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-django coverage flake8
+          # Pinned — unpinned `pip install pytest` pulls pytest 9.x, whose
+          # unittest bridge breaks pytest-django's TestCase integration
+          # (AttributeError: 'PytestDjangoTestCase' has no attribute
+          # '_pre_setup_ran_eagerly'), failing every db-backed test.
+          pip install pytest==8.3.4 pytest-django==4.9.0 coverage==7.6.9 flake8==7.1.1
 
       - name: Create test .env
         run: |
@@ -241,15 +245,18 @@ jobs:
         run: |
           TAG="${{ needs.validate.outputs.tag }}"
           BASE="ghcr.io/${{ github.repository_owner }}"
+          # Both files reference the api image — migrate-job.yaml was previously
+          # missed here, leaving it stuck on a stale tag across releases.
           sed -i "s|${BASE}/ecommerce-api:.*|${BASE}/ecommerce-api:${TAG}|g" k8s/api/deployment.yaml
-          echo "✅ k8s/api/deployment.yaml → ${BASE}/ecommerce-api:${TAG}"
+          sed -i "s|${BASE}/ecommerce-api:.*|${BASE}/ecommerce-api:${TAG}|g" k8s/api/migrate-job.yaml
+          echo "✅ k8s/api/deployment.yaml + k8s/api/migrate-job.yaml → ${BASE}/ecommerce-api:${TAG}"
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           TAG="${{ needs.validate.outputs.tag }}"
-          git add k8s/api/deployment.yaml
+          git add k8s/api/deployment.yaml k8s/api/migrate-job.yaml
           git diff --cached --quiet && echo "No manifest change needed" && exit 0
           git commit -m "chore: bump api image to ${TAG} [skip ci]"
           PUSHED=false

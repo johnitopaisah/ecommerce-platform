@@ -34,6 +34,8 @@ THIRD_PARTY_APPS = [
     'drf_spectacular',
     'django_countries',
     'storages',
+    'django_otp',
+    'django_otp.plugins.otp_totp',
 ]
 
 LOCAL_APPS = [
@@ -55,6 +57,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django_otp.middleware.OTPMiddleware',  # must follow AuthenticationMiddleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -108,10 +111,19 @@ AUTH_USER_MODEL = 'account.UserBase'
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        # Default is 8 — raised for a site that will hold real payment/order history.
+        'OPTIONS': {'min_length': 10},
+    },
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
+
+# Shared by both the activation-link and password-reset-link token generators
+# (apps/account/tokens.py subclasses PasswordResetTokenGenerator). Explicit
+# rather than relying on Django's 3-day default, so the intent is documented.
+PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT_SECONDS', 60 * 60 * 24 * 3))  # 3 days
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -132,6 +144,22 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ),
     'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        # Blanket defaults — generous, just a backstop against runaway clients.
+        'anon': '100/hour',
+        'user': '1000/hour',
+        # Scoped rates on the specific brute-force/enumeration-sensitive
+        # endpoints (apps/core/throttles.py) — tighter, keyed by IP since
+        # these are all pre-authentication actions.
+        'auth_login': '10/minute',
+        'auth_register': '5/hour',
+        'auth_password_reset': '5/hour',
+        'auth_resend_activation': '5/hour',
+    },
 }
 
 SIMPLE_JWT = {

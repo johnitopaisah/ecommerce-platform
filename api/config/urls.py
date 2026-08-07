@@ -7,6 +7,7 @@ from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include
+from django_otp.admin import OTPAdminSite
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
@@ -18,6 +19,12 @@ from apps.store import admin_views as store_admin_views
 from apps.orders import views as order_views
 from apps.orders.admin_views import admin_order_mark_paid
 from apps.account import views as account_views
+
+# Require a verified TOTP device for /django-admin/ access — see
+# apps/account/management/commands/setup_admin_2fa.py to provision one.
+# WARNING: any staff user without a confirmed device is locked out on
+# deploy; provision the super admin's device before/alongside this ships.
+admin.site.__class__ = OTPAdminSite
 
 # ── Admin product URL patterns ────────────────────────────────────────────────
 admin_product_urls = [

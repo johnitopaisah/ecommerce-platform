@@ -10,7 +10,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -18,6 +18,11 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from apps.core.permissions import IsAdminUser
 from apps.core.email import send_activation_email, send_password_reset_email
+from apps.core.throttles import (
+    RegisterRateThrottle,
+    PasswordResetRateThrottle,
+    ResendActivationRateThrottle,
+)
 from .serializers import (
     RegisterSerializer,
     UserSerializer,
@@ -39,6 +44,7 @@ def _frontend_url(path: str) -> str:
                responses={201: OpenApiResponse(description='Account created.')})
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([RegisterRateThrottle])
 def register(request):
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -92,6 +98,31 @@ def activate(request, uidb64, token):
     return HttpResponseRedirect(redirect_url)
 
 
+@extend_schema(tags=['auth'])
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([ResendActivationRateThrottle])
+def resend_activation(request):
+    """
+    Re-send the activation email. Always returns the same generic response
+    regardless of whether the account exists or is already active — mirrors
+    password_reset_request's enumeration-safe pattern below.
+    """
+    email = request.data.get('email', '').lower().strip()
+    if email:
+        try:
+            user = User.objects.get(email=email, is_active=False)
+        except User.DoesNotExist:
+            pass
+        else:
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = account_activation_token.make_token(user)
+            activation_url = f"{request.scheme}://{request.get_host()}/api/v1/auth/activate/{uid}/{token}/"
+            send_activation_email(user, activation_url)
+
+    return Response({'detail': 'If that account needs activation, a new link has been sent.'})
+
+
 # ── Profile ────────────────────────────────────────────────────────────────────
 
 @extend_schema(tags=['auth'], responses={200: UserSerializer})
@@ -140,6 +171,7 @@ def change_password(request):
 @extend_schema(tags=['auth'])
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([PasswordResetRateThrottle])
 def password_reset_request(request):
     email = request.data.get('email', '').lower().strip()
     if email:
@@ -159,6 +191,7 @@ def password_reset_request(request):
 @extend_schema(tags=['auth'])
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([PasswordResetRateThrottle])
 def password_reset_confirm(request):
     uid = request.data.get('uid', '')
     token = request.data.get('token', '')
@@ -235,6 +268,8 @@ def admin_user_deactivate(request, user_id):
         return Response({'error': 'not_found', 'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
     user.is_active = False
     user.save(update_fields=['is_active'])
+    from apps.core.audit import log_admin_action
+    log_admin_action(request, 'user_deactivate', f'User: {user.email}')
     return Response({'detail': f'User {user.email} deactivated.'})
 
 

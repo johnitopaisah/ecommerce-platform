@@ -17,8 +17,8 @@ REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = (  # noqa: F405
 # without needing to whitelist specific ports.
 CORS_ALLOW_ALL_ORIGINS = True
 
-# Use local filesystem for media (not S3)
-USE_S3 = False
+# Use local filesystem for media (not GCS)
+USE_GCS = False
 
 # ── Optional: SQL query logging ────────────────────────────────────────────────
 # Uncomment to log all DB queries to the console during development.
