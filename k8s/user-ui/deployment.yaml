@@ -53,7 +53,7 @@ spec:
               memory: "32Mi"
       containers:
         - name: user-ui
-          image: ghcr.io/johnitopaisah/ecommerce-user-ui:v0.1.4-rc3
+          image: ghcr.io/johnitopaisah/ecommerce-user-ui:v0.1.5-rc1
           imagePullPolicy: Always
           securityContext:
             # 1001 matches the "nextjs" user the Dockerfile creates.
