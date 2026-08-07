@@ -7,6 +7,7 @@ import { ordersApi } from "@/lib/services";
 import type { Order } from "@/types";
 import { formatPrice, getOrderStatusColor } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import OrderStatusTimeline from "@/components/orders/OrderStatusTimeline";
 import { ArrowLeft } from "lucide-react";
 
 export default function OrderDetailPage() {
@@ -72,6 +73,10 @@ export default function OrderDetailPage() {
             Cancel order
           </Button>
         )}
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <OrderStatusTimeline status={order.status} />
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">

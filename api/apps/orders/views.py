@@ -12,7 +12,7 @@ from drf_spectacular.utils import extend_schema
 
 from apps.basket import service as basket_service
 from apps.core.permissions import IsAdminUser
-from apps.core.email import send_order_confirmation_email
+from apps.core.email import send_order_confirmation_email, send_order_status_update_email
 from .models import Order, OrderItem, OrderStatus
 from .serializers import OrderSerializer, OrderCreateSerializer, OrderStatusUpdateSerializer
 
@@ -115,6 +115,7 @@ def order_cancel(request, order_number):
 
     order.status = OrderStatus.CANCELLED
     order.save(update_fields=['status'])
+    send_order_status_update_email(order)
     return Response(OrderSerializer(order).data)
 
 
@@ -157,6 +158,9 @@ def admin_order_status_update(request, order_number):
     old_status = order.status
     order.status = serializer.validated_data['status']
     order.save(update_fields=['status'])
+
+    if order.status != old_status:
+        send_order_status_update_email(order)
 
     from apps.core.audit import log_admin_action
     log_admin_action(

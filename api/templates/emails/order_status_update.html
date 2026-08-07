@@ -1,0 +1,21 @@
+{% extends "emails/base.html" %}
+{% block subject %}Order #{{ order.order_number }} — {{ order.get_status_display }}{% endblock %}
+{% block content %}
+  <h2>{{ headline }}</h2>
+  <p>Hi {{ order.full_name }}, {{ message }}</p>
+
+  <div class="highlight-box" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+    <div>
+      <p class="label">Order number</p>
+      <p class="value">#{{ order.order_number }}</p>
+    </div>
+    <div>
+      <p class="label">Status</p>
+      <p class="value">{{ order.get_status_display }}</p>
+    </div>
+  </div>
+
+  <div style="text-align: center; margin-top: 32px;">
+    <a href="{{ frontend_url }}/account/orders/{{ order.order_number }}" class="btn">Track your order</a>
+  </div>
+{% endblock %}
