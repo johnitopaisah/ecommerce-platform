@@ -62,8 +62,11 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
       try {
+        // Only ever runs client-side (refresh is only non-null in the
+        // browser), so always use the relative BASE_URL, never the
+        // cluster-internal server-side URL — it's unreachable from the browser.
         const { data } = await axios.post(
-          `${process.env.INTERNAL_API_URL || "http://api:8000"}/api/v1/auth/token/refresh/`,
+          `${BASE_URL}/auth/token/refresh/`,
           { refresh }
         );
         localStorage.setItem("admin_access_token", data.access);

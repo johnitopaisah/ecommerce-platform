@@ -87,8 +87,11 @@ api.interceptors.response.use(
       }
 
       try {
+        // This branch only ever runs client-side (refreshToken is only ever
+        // non-null in the browser — see the guard above), so always use the
+        // relative BASE_URL, never the cluster-internal server-side URL.
         const { data } = await axios.post(
-          `${process.env.INTERNAL_API_URL || "http://api:8000"}/api/v1/auth/token/refresh/`,
+          `${BASE_URL}/auth/token/refresh/`,
           { refresh: refreshToken }
         );
 

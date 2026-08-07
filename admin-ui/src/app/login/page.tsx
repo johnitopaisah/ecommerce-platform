@@ -27,6 +27,14 @@ export default function LoginPage() {
       router.push("/");
     } catch (err: unknown) {
       const e = err as { message?: string; response?: { data?: { detail?: string } } };
+      if (e?.message === "Access denied. Admin accounts only.") {
+        // Valid credentials, but not a staff account — send them back to the
+        // storefront rather than stranding them on the admin login form.
+        // window.location (not router.push) is required to escape the
+        // "/admin-panel" basePath and land on user-ui's actual home page.
+        window.location.href = "/";
+        return;
+      }
       setError("root", {
         message: e?.response?.data?.detail || e?.message || "Login failed.",
       });
