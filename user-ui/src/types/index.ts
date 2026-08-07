@@ -110,6 +110,10 @@ export interface Basket {
   items: BasketItem[];
   total_items: number;
   subtotal: string;
+  coupon_code: string | null;
+  coupon_error: string | null;
+  discount_amount: string;
+  total: string;
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────────
@@ -139,6 +143,8 @@ export interface Order {
   status_display: string;
   total_paid: string;
   billing_status: boolean;
+  coupon_code: string | null;
+  discount_amount: string;
   full_name: string;
   email: string;
   phone: string;

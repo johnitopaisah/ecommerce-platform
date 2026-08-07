@@ -45,12 +45,21 @@ def order_list_create(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    total = Decimal(basket_summary['subtotal'])
+    total = Decimal(basket_summary['total'])
+    discount_amount = Decimal(basket_summary['discount_amount'])
+
+    coupon = None
+    coupon_code = basket_summary.get('coupon_code')
+    if coupon_code:
+        from apps.coupons.models import Coupon
+        coupon = Coupon.objects.filter(code=coupon_code).first()
 
     order = Order.objects.create(
         user=request.user,
         order_key=data['order_key'],
         total_paid=total,
+        coupon=coupon,
+        discount_amount=discount_amount,
         full_name=data['full_name'],
         email=data['email'],
         phone=data.get('phone', ''),
@@ -69,6 +78,11 @@ def order_list_create(request):
             price=Decimal(item['price']),
             quantity=item['qty'],
         )
+
+    if coupon:
+        from django.db.models import F
+        Coupon.objects.filter(id=coupon.id).update(times_used=F('times_used') + 1)
+        basket_service.clear_coupon(request)
 
     # Send HTML order confirmation email
     send_order_confirmation_email(order)

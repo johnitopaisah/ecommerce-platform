@@ -13,12 +13,13 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    coupon_code = serializers.CharField(source='coupon.code', read_only=True, default=None)
 
     class Meta:
         model = Order
         fields = (
             'id', 'order_number', 'order_key', 'status', 'status_display',
-            'total_paid', 'billing_status',
+            'total_paid', 'billing_status', 'coupon_code', 'discount_amount',
             'full_name', 'email', 'phone',
             'address_line_1', 'address_line_2', 'city', 'postcode', 'country',
             'items', 'created', 'updated',

@@ -6,6 +6,7 @@ import { useBasketStore } from "@/store/basketStore";
 import { formatPrice, getImageUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import SafeImage from "@/components/ui/SafeImage";
+import CouponForm from "@/components/basket/CouponForm";
 
 export default function BasketPage() {
   const { basket, updateItem, removeItem, isLoading } = useBasketStore();
@@ -118,15 +119,26 @@ export default function BasketPage() {
                 <span>Subtotal</span>
                 <span>{formatPrice(basket.subtotal)}</span>
               </div>
+              {Number(basket.discount_amount) > 0 && (
+                <div className="flex justify-between text-sm text-success-700">
+                  <span>Discount{basket.coupon_code ? ` (${basket.coupon_code})` : ""}</span>
+                  <span>−{formatPrice(basket.discount_amount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Shipping</span>
                 <span className="text-green-600">Free</span>
               </div>
             </div>
+
+            <div className="mb-4">
+              <CouponForm />
+            </div>
+
             <div className="border-t border-gray-200 pt-4 mb-6">
               <div className="flex justify-between font-bold text-gray-900">
                 <span>Total</span>
-                <span>{formatPrice(basket.subtotal)}</span>
+                <span>{formatPrice(basket.total)}</span>
               </div>
             </div>
             <Link href="/checkout">

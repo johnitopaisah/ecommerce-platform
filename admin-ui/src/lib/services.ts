@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import type { AuthTokens, User, Product, Category, Order, AdminStats, Review } from "@/types";
+import type { AuthTokens, User, Product, Category, Order, AdminStats, Review, Coupon } from "@/types";
 
 export interface ProductWritePayload {
   title: string;
@@ -76,4 +76,23 @@ export const reviewsApi = {
   approve: (id: number) => api.patch<Review>(`/admin/reviews/${id}/`, { is_approved: true }),
   reject: (id: number) => api.patch<Review>(`/admin/reviews/${id}/`, { is_approved: false }),
   delete: (id: number) => api.delete(`/admin/reviews/${id}/`),
+};
+
+export interface CouponWritePayload {
+  code: string;
+  discount_type: "percentage" | "fixed";
+  discount_value: number;
+  is_active?: boolean;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  min_order_value?: number | null;
+  usage_limit?: number | null;
+}
+
+export const couponsApi = {
+  list: () => api.get<Coupon[]>("/admin/coupons/"),
+  create: (data: CouponWritePayload) => api.post<Coupon>("/admin/coupons/", data),
+  update: (id: number, data: Partial<CouponWritePayload>) =>
+    api.patch<Coupon>(`/admin/coupons/${id}/`, data),
+  delete: (id: number) => api.delete(`/admin/coupons/${id}/`),
 };

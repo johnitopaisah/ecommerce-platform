@@ -37,6 +37,15 @@ def _basket_key(request):
     return f'basket:session:{request.session.session_key}'
 
 
+def _coupon_key(request):
+    """Same scoping as the basket key — a coupon lives alongside its basket."""
+    if request.user.is_authenticated:
+        return f'coupon:user:{request.user.id}'
+    if not request.session.session_key:
+        request.session.create()
+    return f'coupon:session:{request.session.session_key}'
+
+
 def _load(key: str) -> dict:
     redis = _get_redis()
     raw = redis.get(key)
@@ -109,8 +118,22 @@ def remove_item(request, product_id: int) -> dict:
 
 
 def clear_basket(request):
-    """Delete the entire basket."""
+    """Delete the entire basket (and any applied coupon — it belongs to this basket)."""
     _delete(_basket_key(request))
+    _delete(_coupon_key(request))
+
+
+def set_coupon(request, code: str):
+    _get_redis().set(_coupon_key(request), code, ex=BASKET_TTL)
+
+
+def get_coupon_code(request) -> str | None:
+    raw = _get_redis().get(_coupon_key(request))
+    return raw.decode() if raw else None
+
+
+def clear_coupon(request):
+    _delete(_coupon_key(request))
 
 
 def merge_baskets(request, user_id: int):
@@ -143,12 +166,21 @@ def get_basket_summary(request) -> dict:
     """
     Return a basket summary with full product data hydrated from the DB.
     Expensive (DB query) — used only for the basket detail view.
+
+    Discount is recomputed fresh from the live coupon + subtotal on every
+    call — never trusted from anywhere else — so an applied coupon that
+    expires, gets deactivated, or hits its usage limit between "apply" and
+    checkout is caught here rather than silently over- or under-charging.
     """
     from apps.store.models import Product  # local import to avoid circular
 
     basket = _load(_basket_key(request))
     if not basket:
-        return {'items': [], 'total_items': 0, 'subtotal': '0.00'}
+        return {
+            'items': [], 'total_items': 0, 'subtotal': '0.00',
+            'coupon_code': None, 'coupon_error': None,
+            'discount_amount': '0.00', 'total': '0.00',
+        }
 
     product_ids = [int(pid) for pid in basket.keys()]
     products = {
@@ -181,8 +213,30 @@ def get_basket_summary(request) -> dict:
             'stock_quantity': product.stock_quantity,
         })
 
+    coupon_code = get_coupon_code(request)
+    applied_code = None
+    coupon_error = None
+    discount_amount = Decimal('0.00')
+
+    if coupon_code:
+        from apps.coupons.models import Coupon  # local import to avoid circular
+        try:
+            coupon = Coupon.objects.get(code=coupon_code)
+            valid, error = coupon.is_valid(subtotal)
+            if valid:
+                applied_code = coupon.code
+                discount_amount = coupon.calculate_discount(subtotal)
+            else:
+                coupon_error = error
+        except Coupon.DoesNotExist:
+            coupon_error = 'Coupon not found.'
+
     return {
         'items': items,
         'total_items': sum(i['qty'] for i in items),
         'subtotal': str(subtotal),
+        'coupon_code': applied_code,
+        'coupon_error': coupon_error,
+        'discount_amount': str(discount_amount),
+        'total': str(subtotal - discount_amount),
     }

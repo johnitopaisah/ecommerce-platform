@@ -133,7 +133,7 @@ export default function CheckoutPage() {
             )}
 
             <Button type="submit" size="lg" className="w-full" isLoading={isSubmitting}>
-              Place order — {formatPrice(basket.subtotal)}
+              Place order — {formatPrice(basket.total)}
             </Button>
           </form>
         </div>
@@ -157,11 +157,17 @@ export default function CheckoutPage() {
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Subtotal</span><span>{formatPrice(basket.subtotal)}</span>
               </div>
+              {Number(basket.discount_amount) > 0 && (
+                <div className="flex justify-between text-sm text-success-700">
+                  <span>Discount{basket.coupon_code ? ` (${basket.coupon_code})` : ""}</span>
+                  <span>−{formatPrice(basket.discount_amount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Shipping</span><span className="text-green-600">Free</span>
               </div>
               <div className="flex justify-between font-bold text-gray-900 pt-1">
-                <span>Total</span><span>{formatPrice(basket.subtotal)}</span>
+                <span>Total</span><span>{formatPrice(basket.total)}</span>
               </div>
             </div>
             <Link href="/basket">

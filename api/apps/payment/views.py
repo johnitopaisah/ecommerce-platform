@@ -46,10 +46,12 @@ def create_payment_intent(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Stripe expects the amount in the smallest currency unit (pence for GBP)
+    # Stripe expects the amount in the smallest currency unit (pence for GBP).
+    # basket_summary['total'] already reflects any applied (and still valid)
+    # coupon discount — see apps.basket.service.get_basket_summary.
     from decimal import Decimal
-    subtotal = Decimal(basket_summary['subtotal'])
-    amount_pence = int(subtotal * 100)
+    total = Decimal(basket_summary['total'])
+    amount_pence = int(total * 100)
 
     try:
         intent = stripe.PaymentIntent.create(
@@ -67,7 +69,7 @@ def create_payment_intent(request):
     return Response({
         'client_secret': intent.client_secret,
         'payment_intent_id': intent.id,
-        'amount': basket_summary['subtotal'],
+        'amount': basket_summary['total'],
         'currency': 'gbp',
     })
 

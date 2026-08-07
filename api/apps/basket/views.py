@@ -9,6 +9,8 @@ DELETE /api/v1/basket/                 clear basket
 POST   /api/v1/basket/merge/           merge anonymous basket on login
 """
 
+from decimal import Decimal
+
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -137,6 +139,49 @@ def basket_remove(request, product_id):
     service.remove_item(request, product_id)
     summary = service.get_basket_summary(request)
     return Response(summary)
+
+
+# ── Merge (called after login) ─────────────────────────────────────────────────
+
+# ── Coupon ─────────────────────────────────────────────────────────────────────
+
+@extend_schema(tags=['basket'])
+@api_view(['POST', 'DELETE'])
+@permission_classes([AllowAny])
+def basket_coupon(request):
+    """
+    POST   — apply a coupon code.   Body: { "code": "SAVE10" }
+    DELETE — remove the applied coupon.
+    """
+    if request.method == 'DELETE':
+        service.clear_coupon(request)
+        return Response(service.get_basket_summary(request))
+
+    code = (request.data.get('code') or '').strip().upper()
+    if not code:
+        return Response(
+            {'error': 'bad_request', 'detail': 'code is required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    from apps.coupons.models import Coupon
+    summary_before = service.get_basket_summary(request)
+    subtotal = Decimal(summary_before['subtotal'])
+
+    try:
+        coupon = Coupon.objects.get(code=code)
+    except Coupon.DoesNotExist:
+        return Response(
+            {'error': 'not_found', 'detail': 'Invalid coupon code.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    valid, error = coupon.is_valid(subtotal)
+    if not valid:
+        return Response({'error': 'bad_request', 'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+    service.set_coupon(request, coupon.code)
+    return Response(service.get_basket_summary(request))
 
 
 # ── Merge (called after login) ─────────────────────────────────────────────────

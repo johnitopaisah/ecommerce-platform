@@ -95,6 +95,24 @@ export interface Review {
   created: string;
 }
 
+// ── Coupons ───────────────────────────────────────────────────────────────────
+export type DiscountType = "percentage" | "fixed";
+
+export interface Coupon {
+  id: number;
+  code: string;
+  discount_type: DiscountType;
+  discount_value: string;
+  is_active: boolean;
+  valid_from: string | null;
+  valid_until: string | null;
+  min_order_value: string | null;
+  usage_limit: number | null;
+  times_used: number;
+  created: string;
+  updated: string;
+}
+
 // ── Stats ─────────────────────────────────────────────────────────────────────
 export interface AdminStats {
   users: { total: number; active: number; new_today: number };

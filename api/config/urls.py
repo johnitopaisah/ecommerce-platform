@@ -19,6 +19,7 @@ from apps.store import admin_views as store_admin_views
 from apps.orders import views as order_views
 from apps.orders.admin_views import admin_order_mark_paid
 from apps.account import views as account_views
+from apps.coupons import views as coupon_views
 
 # Require a verified TOTP device for /django-admin/ access — see
 # apps/account/management/commands/setup_admin_2fa.py to provision one.
@@ -121,6 +122,20 @@ admin_review_urls = [
     ),
 ]
 
+# ── Admin coupon URL patterns ────────────────────────────────────────────────
+admin_coupon_urls = [
+    path(
+        'coupons/',
+        coupon_views.admin_coupon_list,
+        name='admin_coupon_list',
+    ),
+    path(
+        'coupons/<int:coupon_id>/',
+        coupon_views.admin_coupon_detail,
+        name='admin_coupon_detail',
+    ),
+]
+
 urlpatterns = [
     path('django-admin/', admin.site.urls),
 
@@ -167,6 +182,7 @@ urlpatterns = [
             + admin_order_urls
             + admin_user_urls
             + admin_review_urls
+            + admin_coupon_urls
         )),
     ])),
 

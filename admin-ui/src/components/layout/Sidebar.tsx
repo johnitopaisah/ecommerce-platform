@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Package, Tag, ShoppingBag, Users,
   LogOut, ChevronRight, ChevronsLeft, ChevronsRight,
-  Store, ShieldCheck, Star,
+  Store, ShieldCheck, Star, Percent,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
@@ -38,6 +38,7 @@ const SECTIONS: NavSection[] = [
     label: "Sales",
     items: [
       { href: "/orders", label: "Orders", icon: ShoppingBag },
+      { href: "/coupons", label: "Coupons", icon: Percent },
       { href: "/reviews", label: "Reviews", icon: Star },
     ],
   },

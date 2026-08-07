@@ -5,19 +5,26 @@ import { basketApi } from "@/lib/services";
 interface BasketState {
   basket: Basket;
   isLoading: boolean;
+  couponLoading: boolean;
   fetchBasket: () => Promise<void>;
   addItem: (product_id: number, qty: number) => Promise<void>;
   updateItem: (product_id: number, qty: number) => Promise<void>;
   removeItem: (product_id: number) => Promise<void>;
   clearBasket: () => Promise<void>;
   mergeBasket: () => Promise<void>;
+  applyCoupon: (code: string) => Promise<string | null>;
+  removeCoupon: () => Promise<void>;
 }
 
-const emptyBasket: Basket = { items: [], total_items: 0, subtotal: "0.00" };
+const emptyBasket: Basket = {
+  items: [], total_items: 0, subtotal: "0.00",
+  coupon_code: null, coupon_error: null, discount_amount: "0.00", total: "0.00",
+};
 
 export const useBasketStore = create<BasketState>()((set) => ({
   basket: emptyBasket,
   isLoading: false,
+  couponLoading: false,
 
   fetchBasket: async () => {
     set({ isLoading: true });
@@ -77,6 +84,31 @@ export const useBasketStore = create<BasketState>()((set) => ({
       set({ basket: data });
     } catch {
       // Non-critical
+    }
+  },
+
+  // Returns an error message on failure (for inline display), null on success.
+  applyCoupon: async (code) => {
+    set({ couponLoading: true });
+    try {
+      const { data } = await basketApi.applyCoupon(code);
+      set({ basket: data });
+      return null;
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      return e?.response?.data?.detail || "Could not apply coupon.";
+    } finally {
+      set({ couponLoading: false });
+    }
+  },
+
+  removeCoupon: async () => {
+    set({ couponLoading: true });
+    try {
+      const { data } = await basketApi.removeCoupon();
+      set({ basket: data });
+    } finally {
+      set({ couponLoading: false });
     }
   },
 }));

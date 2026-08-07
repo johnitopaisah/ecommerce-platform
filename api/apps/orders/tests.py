@@ -5,10 +5,14 @@ Order status transitions — authorization and the tracking-email side effect.
 import pytest
 from django.core import mail
 
+from apps.coupons.models import Coupon
 from apps.store.models import Category, Product
 from .models import Order, OrderStatus
 
 ADMIN_ORDERS_URL = '/api/v1/admin/orders/'
+ORDERS_URL = '/api/v1/orders/'
+BASKET_ITEMS_URL = '/api/v1/basket/items/'
+BASKET_COUPON_URL = '/api/v1/basket/coupon/'
 
 
 @pytest.fixture
@@ -85,6 +89,67 @@ class TestAdminOrderStatusUpdate:
 
         assert response.status_code == 200
         assert len(mail.outbox) == 0
+
+
+@pytest.mark.django_db
+class TestOrderCreationWithCoupon:
+    def _checkout_payload(self, order_key='order-key-1'):
+        return {
+            'order_key': order_key,
+            'full_name': 'Test Buyer', 'email': 'buyer@example.com',
+            'address_line_1': '1 Test St', 'city': 'London',
+            'postcode': 'AA1 1AA', 'country': 'UK',
+        }
+
+    def test_order_total_reflects_applied_coupon(self, api_client, regular_user, product):
+        Coupon.objects.create(code='SAVE10', discount_type=Coupon.DiscountType.PERCENTAGE, discount_value='10.00')
+        api_client.force_authenticate(regular_user)
+        api_client.post(BASKET_ITEMS_URL, {'product_id': product.id, 'qty': 1}, format='json')
+        api_client.post(BASKET_COUPON_URL, {'code': 'SAVE10'}, format='json')
+
+        response = api_client.post(ORDERS_URL, self._checkout_payload(), format='json')
+
+        assert response.status_code == 201
+        assert response.data['coupon_code'] == 'SAVE10'
+        assert response.data['discount_amount'] == '2.00'  # 10% of 19.99, rounded
+        assert response.data['total_paid'] == '17.99'
+
+    def test_coupon_usage_count_increments_on_checkout(self, api_client, regular_user, product):
+        coupon = Coupon.objects.create(
+            code='SAVE10', discount_type=Coupon.DiscountType.PERCENTAGE, discount_value='10.00'
+        )
+        api_client.force_authenticate(regular_user)
+        api_client.post(BASKET_ITEMS_URL, {'product_id': product.id, 'qty': 1}, format='json')
+        api_client.post(BASKET_COUPON_URL, {'code': 'SAVE10'}, format='json')
+
+        api_client.post(ORDERS_URL, self._checkout_payload(), format='json')
+
+        coupon.refresh_from_db()
+        assert coupon.times_used == 1
+
+    def test_coupon_cleared_from_basket_after_checkout(self, api_client, regular_user, product):
+        Coupon.objects.create(code='SAVE10', discount_type=Coupon.DiscountType.PERCENTAGE, discount_value='10.00')
+        api_client.force_authenticate(regular_user)
+        api_client.post(BASKET_ITEMS_URL, {'product_id': product.id, 'qty': 1}, format='json')
+        api_client.post(BASKET_COUPON_URL, {'code': 'SAVE10'}, format='json')
+        api_client.post(ORDERS_URL, self._checkout_payload(), format='json')
+
+        # New basket (product re-added) should start with no leftover coupon.
+        api_client.post(BASKET_ITEMS_URL, {'product_id': product.id, 'qty': 1}, format='json')
+        response = api_client.get('/api/v1/basket/')
+
+        assert response.data['coupon_code'] is None
+
+    def test_order_without_coupon_has_zero_discount(self, api_client, regular_user, product):
+        api_client.force_authenticate(regular_user)
+        api_client.post(BASKET_ITEMS_URL, {'product_id': product.id, 'qty': 1}, format='json')
+
+        response = api_client.post(ORDERS_URL, self._checkout_payload(), format='json')
+
+        assert response.status_code == 201
+        assert response.data['coupon_code'] is None
+        assert response.data['discount_amount'] == '0.00'
+        assert response.data['total_paid'] == '19.99'
 
 
 @pytest.mark.django_db

@@ -98,9 +98,17 @@ export default function OrderDetailPage() {
             </div>
           ))}
         </div>
-        <div className="px-5 py-4 bg-gray-50 flex justify-between">
-          <span className="font-semibold text-gray-900">Total</span>
-          <span className="font-bold text-gray-900">{formatPrice(order.total_paid)}</span>
+        <div className="px-5 py-4 bg-gray-50 space-y-1.5">
+          {Number(order.discount_amount) > 0 && (
+            <div className="flex justify-between text-sm text-success-700">
+              <span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ""}</span>
+              <span>−{formatPrice(order.discount_amount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-900">Total</span>
+            <span className="font-bold text-gray-900">{formatPrice(order.total_paid)}</span>
+          </div>
         </div>
       </div>
 

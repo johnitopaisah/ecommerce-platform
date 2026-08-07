@@ -53,6 +53,17 @@ class Order(models.Model):
     total_paid = models.DecimalField(max_digits=10, decimal_places=2)
     billing_status = models.BooleanField(default=False)
 
+    # Discount — snapshot of what was applied at checkout, so later changes
+    # to (or deletion of) the coupon never alter historical order totals.
+    coupon = models.ForeignKey(
+        'coupons.Coupon',
+        related_name='orders',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+
     # Shipping address snapshot (copied from user at order time)
     full_name = models.CharField(max_length=150)
     email = models.EmailField()

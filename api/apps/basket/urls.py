@@ -8,5 +8,6 @@ urlpatterns = [
     path('items/', views.basket_add, name='basket_add'),
     path('items/<int:product_id>/', views.basket_update, name='basket_update'),
     path('items/<int:product_id>/remove/', views.basket_remove, name='basket_remove'),
+    path('coupon/', views.basket_coupon, name='basket_coupon'),
     path('merge/', views.basket_merge, name='basket_merge'),
 ]

@@ -110,6 +110,10 @@ export const basketApi = {
   clear: () => api.delete<void>("/basket/"),
 
   merge: () => api.post<Basket>("/basket/merge/"),
+
+  applyCoupon: (code: string) => api.post<Basket>("/basket/coupon/", { code }),
+
+  removeCoupon: () => api.delete<Basket>("/basket/coupon/"),
 };
 
 // ── Wishlist ──────────────────────────────────────────────────────────────────

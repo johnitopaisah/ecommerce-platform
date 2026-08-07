@@ -32,6 +32,12 @@
     <span style="font-weight: 600;">£{{ item.line_total }}</span>
   </div>
   {% endfor %}
+  {% if order.discount_amount > 0 %}
+  <div class="order-item">
+    <span>Discount{% if order.coupon %} ({{ order.coupon.code }}){% endif %}</span>
+    <span style="font-weight: 600; color: #16a34a;">−£{{ order.discount_amount }}</span>
+  </div>
+  {% endif %}
   <div class="order-total">
     <span>Total</span>
     <span>£{{ order.total_paid }}</span>
