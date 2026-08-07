@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status as drf_status
 from apps.core.permissions import IsAdminUser
+from apps.core.audit import log_admin_action
 from apps.orders.models import Order, OrderStatus
 from apps.orders.serializers import OrderSerializer
 
@@ -25,4 +26,5 @@ def admin_order_mark_paid(request, order_number):
     order.billing_status = True
     order.status = OrderStatus.CONFIRMED
     order.save(update_fields=['billing_status', 'status'])
+    log_admin_action(request, 'order_mark_paid', f'Order #{order.order_number}')
     return Response(OrderSerializer(order).data)

@@ -20,27 +20,69 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = True
 
-# ── S3 Media & Static ─────────────────────────────────────────────────────────
-USE_S3 = os.getenv('USE_S3', 'False') == 'True'
+# CSRF_TRUSTED_ORIGINS must include the scheme — without it, Django rejects
+# same-origin POSTs (e.g. the Django admin login form) whenever the request
+# reaches the app over a different hop than the browser's (Cloudflare/Traefik
+# terminate TLS in front of this pod, so Django sees the proxied request).
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', 'https://shopnow.johnisah.com').split(',')
+    if origin.strip()
+]
 
-if USE_S3:
-    AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-    AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-    AWS_STORAGE_BUCKET_NAME = os.environ['AWS_STORAGE_BUCKET_NAME']
-    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
-    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
-    AWS_DEFAULT_ACL = 'public-read'
-    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+# ── GCS Media & Static ────────────────────────────────────────────────────────
+# No service-account key required — this project's org policy blocks SA key
+# creation, and the pod runs on a GCE VM whose attached service account
+# (vm_sa, see terraform/modules/gcp_infra/main.tf) is picked up automatically
+# via Application Default Credentials through the metadata server. Same
+# ambient-auth pattern already used by the backup CronJobs.
+USE_GCS = os.getenv('USE_GCS', 'False') == 'True'
 
-    # Static
-    STATIC_LOCATION = 'static'
-    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{STATIC_LOCATION}/'
-    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+if USE_GCS:
+    GS_BUCKET_NAME = os.environ['GS_BUCKET_NAME']
 
-    # Media
-    MEDIA_LOCATION = 'media'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{MEDIA_LOCATION}/'
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    # STORAGES (Django 4.2+) rather than the legacy global GS_* settings —
+    # 'default' (media) and 'staticfiles' need separate `location` prefixes
+    # on the *same* bucket, which only per-backend OPTIONS can express;
+    # global GS_LOCATION would apply to both and collide.
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.gcloud.GoogleCloudStorage',
+            'OPTIONS': {
+                'bucket_name': GS_BUCKET_NAME,
+                'location': 'media',
+                'default_acl': None,       # uniform_bucket_level_access — no per-object ACLs
+                'querystring_auth': False,  # public bucket — plain URLs, no signed params
+                'file_overwrite': False,
+            },
+        },
+        'staticfiles': {
+            'BACKEND': 'storages.backends.gcloud.GoogleCloudStorage',
+            'OPTIONS': {
+                'bucket_name': GS_BUCKET_NAME,
+                'location': 'static',
+                'default_acl': None,
+                'querystring_auth': False,
+            },
+        },
+    }
+
+    STATIC_URL = f'https://storage.googleapis.com/{GS_BUCKET_NAME}/static/'
+    MEDIA_URL = f'https://storage.googleapis.com/{GS_BUCKET_NAME}/media/'
+
+# ── Error tracking ────────────────────────────────────────────────────────────
+SENTRY_DSN = os.getenv('SENTRY_DSN', '')
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=0.2,
+        send_default_pii=False,
+        environment=os.getenv('ENVIRONMENT', 'production'),
+    )
 
 # ── Logging (JSON to stdout — picked up by k8s) ───────────────────────────────
 LOGGING = {

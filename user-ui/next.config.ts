@@ -27,9 +27,13 @@ const nextConfig: NextConfig = {
 
   images: {
     unoptimized: true,
+    // hostname is already unrestricted ("**"), so a narrow pathname adds no
+    // real security value while actively breaking GCS-hosted images: GCS
+    // URLs are https://storage.googleapis.com/<bucket>/media/... — the
+    // bucket name sits before /media/, which "/media/**" doesn't match.
     remotePatterns: [
-      { protocol: "http", hostname: "**", pathname: "/media/**" },
-      { protocol: "https", hostname: "**", pathname: "/media/**" },
+      { protocol: "http", hostname: "**", pathname: "/**" },
+      { protocol: "https", hostname: "**", pathname: "/**" },
     ],
   },
 };

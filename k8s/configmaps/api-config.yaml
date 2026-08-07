@@ -23,20 +23,27 @@ data:
   # Redis
   REDIS_URL: "redis://redis:6379/0"
 
-  # CORS
-  CORS_ALLOWED_ORIGINS: "https://shopnow.johnisah.com,http://shopnow.local,http://localhost"
+  # CORS — production domain only. (Previously also listed http://shopnow.local
+  # and http://localhost, which have no business being allowed CORS origins on
+  # the live deployment — dev-testing leftovers, tightened during the auth/
+  # security hardening pass.)
+  CORS_ALLOWED_ORIGINS: "https://shopnow.johnisah.com"
+
+  # CSRF — must include scheme; see config/settings/production.py
+  CSRF_TRUSTED_ORIGINS: "https://shopnow.johnisah.com"
 
   # JWT
   JWT_ACCESS_TOKEN_LIFETIME_MINUTES: "60"
   JWT_REFRESH_TOKEN_LIFETIME_DAYS: "7"
 
-  # Email
+  # Email — backend only; HOST/PORT/TLS/SSL/DEFAULT_FROM_EMAIL come from
+  # api-secret (see k8s/api/deployment.yaml) so there is exactly one source
+  # of truth. Previously this ConfigMap also shadowed those with stale
+  # smtp.gmail.com values while api-secret had the real Zoho settings — the
+  # deployment only ever explicitly wired EMAIL_HOST_USER/PASSWORD from the
+  # secret, so the wrong ConfigMap values silently won and activation/reset
+  # emails were failing SMTP auth on every send.
   EMAIL_BACKEND: "django.core.mail.backends.smtp.EmailBackend"
-  EMAIL_HOST: "smtp.gmail.com"
-  EMAIL_PORT: "587"
-  EMAIL_USE_TLS: "True"
-  EMAIL_USE_SSL: "False"
-  DEFAULT_FROM_EMAIL: "ShopNow <johnitopaisah@gmail.com>"
 
   # Frontend
   FRONTEND_URL: "https://shopnow.johnisah.com"
@@ -46,5 +53,6 @@ data:
   GUNICORN_THREADS: "2"
   GUNICORN_TIMEOUT: "120"
 
-  # S3 disabled
-  USE_S3: "False"
+  # GCS media/static storage
+  USE_GCS: "True"
+  GS_BUCKET_NAME: "shopnow-media"

@@ -1,10 +1,10 @@
 from django.urls import path
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
     TokenRefreshView,
     TokenBlacklistView,
 )
 from . import views
+from .auth_views import ThrottledTokenObtainPairView
 
 app_name = 'account'
 
@@ -12,9 +12,10 @@ urlpatterns = [
     # Registration & activation
     path('register/', views.register, name='register'),
     path('activate/<str:uidb64>/<str:token>/', views.activate, name='activate'),
+    path('activate/resend/', views.resend_activation, name='resend_activation'),
 
     # JWT — login / refresh / logout
-    path('token/', TokenObtainPairView.as_view(), name='token_obtain'),
+    path('token/', ThrottledTokenObtainPairView.as_view(), name='token_obtain'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('token/blacklist/', TokenBlacklistView.as_view(), name='token_blacklist'),
 

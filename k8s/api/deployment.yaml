@@ -110,6 +110,26 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: DB_PASSWORD
+            - name: EMAIL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: EMAIL_HOST
+            - name: EMAIL_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: EMAIL_PORT
+            - name: EMAIL_USE_TLS
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: EMAIL_USE_TLS
+            - name: EMAIL_USE_SSL
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: EMAIL_USE_SSL
             - name: EMAIL_HOST_USER
               valueFrom:
                 secretKeyRef:
@@ -120,6 +140,11 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: EMAIL_HOST_PASSWORD
+            - name: DEFAULT_FROM_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: DEFAULT_FROM_EMAIL
             - name: STRIPE_SECRET_KEY
               valueFrom:
                 secretKeyRef:
@@ -135,6 +160,12 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: STRIPE_ENDPOINT_SECRET
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: SENTRY_DSN
+                  optional: true
           resources:
             requests:
               memory: "256Mi"

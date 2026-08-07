@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 
 from apps.core.permissions import IsAdminUser
+from apps.core.audit import log_admin_action
 from .models import Category, Product, ProductImage
 from .serializers import (
     CategorySerializer,
@@ -39,6 +40,7 @@ def admin_category_list(request):
         slug = f'{base_slug}-{counter}'
         counter += 1
     serializer.save(slug=slug)
+    log_admin_action(request, 'category_create', f'Category: {name}')
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -58,6 +60,7 @@ def admin_category_detail(request, slug):
         return Response(CategorySerializer(category).data)
 
     if request.method == 'DELETE':
+        log_admin_action(request, 'category_delete', f'Category: {category.name}')
         category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -66,6 +69,7 @@ def admin_category_detail(request, slug):
     )
     serializer.is_valid(raise_exception=True)
     serializer.save()
+    log_admin_action(request, 'category_update', f'Category: {category.name}', dict(request.data))
     return Response(serializer.data)
 
 
@@ -87,6 +91,10 @@ def admin_product_list(request):
     serializer = ProductWriteSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     product = serializer.save(created_by=request.user)
+    log_admin_action(
+        request, 'product_create', f'Product: {product.title}',
+        {'price': str(product.price), 'stock_quantity': product.stock_quantity},
+    )
     return Response(
         ProductDetailSerializer(product).data,
         status=status.HTTP_201_CREATED,
@@ -114,14 +122,21 @@ def admin_product_detail(request, slug):
         return Response(ProductDetailSerializer(product).data)
 
     if request.method == 'DELETE':
+        log_admin_action(request, 'product_delete', f'Product: {product.title}')
         product.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    before = {'price': str(product.price), 'stock_quantity': product.stock_quantity}
     serializer = ProductWriteSerializer(
         product, data=request.data, partial=(request.method == 'PATCH')
     )
     serializer.is_valid(raise_exception=True)
     serializer.save()
+    after = {'price': str(product.price), 'stock_quantity': product.stock_quantity}
+    log_admin_action(
+        request, 'product_update', f'Product: {product.title}',
+        {'before': before, 'after': after} if before != after else {},
+    )
     return Response(ProductDetailSerializer(product).data)
 
 
