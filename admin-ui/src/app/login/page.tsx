@@ -32,7 +32,7 @@ export default function LoginPage() {
         // storefront rather than stranding them on the admin login form.
         // window.location (not router.push) is required to escape the
         // "/admin-panel" basePath and land on user-ui's actual home page.
-        window.location.href = "/";
+        window.location.assign("/");
         return;
       }
       setError("root", {
