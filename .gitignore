@@ -77,6 +77,9 @@ htmlcov/
 .pytest_cache/
 .mypy_cache/
 
+# ── Local test data — never committed, purely for manual upload testing ──────
+images-dir/
+
 # ── Kubernetes — NEVER commit real secrets ───────────────────────────────────
 # The infisical-auth-secret contains real credentials — never commit it
 k8s/infisical/infisical-auth-secret.yaml
