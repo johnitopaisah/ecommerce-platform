@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, User, Menu, X, Search, ShieldCheck } from "lucide-react";
+import { ShoppingCart, User, Menu, X, Search, ShieldCheck, Heart } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useBasketStore } from "@/store/basketStore";
+import { useWishlistStore } from "@/store/wishlistStore";
 
 export default function Navbar() {
   const router = useRouter();
   const { isAuthenticated, user, logout } = useAuthStore();
   const { basket, fetchBasket } = useBasketStore();
+  const { items: wishlistItems } = useWishlistStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -55,6 +57,16 @@ export default function Navbar() {
           </nav>
 
           <div className="flex items-center gap-3">
+            {isAuthenticated && (
+              <Link href="/account/wishlist" className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors">
+                <Heart size={22} />
+                {wishlistItems.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-gray-900 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {wishlistItems.length > 99 ? "99+" : wishlistItems.length}
+                  </span>
+                )}
+              </Link>
+            )}
             <Link href="/basket" className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors">
               <ShoppingCart size={22} />
               {basket.total_items > 0 && (
@@ -80,6 +92,8 @@ export default function Navbar() {
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Profile</Link>
                       <Link href="/account/orders" onClick={() => setUserMenuOpen(false)}
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Orders</Link>
+                      <Link href="/account/wishlist" onClick={() => setUserMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Wishlist</Link>
                       {user?.is_staff && (
                         <a href="/admin-panel" onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-1.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">

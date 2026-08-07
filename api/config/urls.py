@@ -153,6 +153,13 @@ urlpatterns = [
         path('orders/', include('apps.orders.urls', namespace='orders')),
         path('payment/', include('apps.payment.urls', namespace='payment')),
 
+        # Wishlist (auth required)
+        path('wishlist/', include([
+            path('', store_views.wishlist_list, name='wishlist_list'),
+            path('items/', store_views.wishlist_add, name='wishlist_add'),
+            path('items/<slug:slug>/', store_views.wishlist_remove, name='wishlist_remove'),
+        ])),
+
         # Admin-only endpoints
         path('admin/', include(
             admin_product_urls

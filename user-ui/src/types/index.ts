@@ -62,6 +62,20 @@ export interface Product {
   created: string;
 }
 
+// ── Wishlist ──────────────────────────────────────────────────────────────────
+export interface WishlistItem {
+  id: number;
+  product_id: number;
+  product_title: string;
+  product_slug: string;
+  product_image: string;
+  product_price: string;
+  product_effective_price: string;
+  product_in_stock: boolean;
+  category_name: string;
+  created: string;
+}
+
 // ── Reviews ───────────────────────────────────────────────────────────────────
 export interface Review {
   id: number;

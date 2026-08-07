@@ -9,11 +9,13 @@ import pytest
 from apps.account.models import UserBase
 from apps.core.models import AdminActionLog
 from apps.orders.models import Order, OrderItem, OrderStatus
-from .models import Category, Product, Review
+from .models import Category, Product, Review, WishlistItem
 
 ADMIN_PRODUCTS_URL = '/api/v1/admin/products/'
 ADMIN_CATEGORIES_URL = '/api/v1/admin/categories/'
 ADMIN_REVIEWS_URL = '/api/v1/admin/reviews/'
+WISHLIST_URL = '/api/v1/wishlist/'
+WISHLIST_ITEMS_URL = '/api/v1/wishlist/items/'
 
 
 @pytest.fixture
@@ -191,3 +193,78 @@ class TestReviewModeration:
         assert response.status_code == 200
         assert len(response.data) == 1
         assert response.data[0]['rating'] == 2
+
+
+@pytest.mark.django_db
+class TestWishlist:
+    def test_anonymous_cannot_view_wishlist(self, api_client):
+        response = api_client.get(WISHLIST_URL)
+        assert response.status_code == 401
+
+    def test_anonymous_cannot_add_to_wishlist(self, api_client, product):
+        response = api_client.post(WISHLIST_ITEMS_URL, {'product_slug': product.slug}, format='json')
+        assert response.status_code == 401
+
+    def test_authenticated_user_can_add_product(self, api_client, regular_user, product):
+        api_client.force_authenticate(regular_user)
+
+        response = api_client.post(WISHLIST_ITEMS_URL, {'product_slug': product.slug}, format='json')
+
+        assert response.status_code == 201
+        assert response.data['product_slug'] == product.slug
+        assert WishlistItem.objects.filter(user=regular_user, product=product).exists()
+
+    def test_adding_same_product_twice_is_idempotent(self, api_client, regular_user, product):
+        api_client.force_authenticate(regular_user)
+        api_client.post(WISHLIST_ITEMS_URL, {'product_slug': product.slug}, format='json')
+
+        response = api_client.post(WISHLIST_ITEMS_URL, {'product_slug': product.slug}, format='json')
+
+        assert response.status_code == 200
+        assert WishlistItem.objects.filter(user=regular_user, product=product).count() == 1
+
+    def test_add_requires_product_slug(self, api_client, regular_user):
+        api_client.force_authenticate(regular_user)
+        response = api_client.post(WISHLIST_ITEMS_URL, {}, format='json')
+        assert response.status_code == 400
+
+    def test_add_nonexistent_product_returns_404(self, api_client, regular_user):
+        api_client.force_authenticate(regular_user)
+        response = api_client.post(WISHLIST_ITEMS_URL, {'product_slug': 'does-not-exist'}, format='json')
+        assert response.status_code == 404
+
+    def test_list_only_returns_own_items(self, api_client, regular_user, product):
+        other_user = UserBase.objects.create(email='other@example.com', user_name='other', is_active=True)
+        WishlistItem.objects.create(user=other_user, product=product)
+        WishlistItem.objects.create(user=regular_user, product=product)
+        api_client.force_authenticate(regular_user)
+
+        response = api_client.get(WISHLIST_URL)
+
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        assert response.data[0]['product_slug'] == product.slug
+
+    def test_user_can_remove_item(self, api_client, regular_user, product):
+        WishlistItem.objects.create(user=regular_user, product=product)
+        api_client.force_authenticate(regular_user)
+
+        response = api_client.delete(f'{WISHLIST_ITEMS_URL}{product.slug}/')
+
+        assert response.status_code == 204
+        assert not WishlistItem.objects.filter(user=regular_user, product=product).exists()
+
+    def test_removing_item_not_in_wishlist_returns_404(self, api_client, regular_user, product):
+        api_client.force_authenticate(regular_user)
+        response = api_client.delete(f'{WISHLIST_ITEMS_URL}{product.slug}/')
+        assert response.status_code == 404
+
+    def test_user_cannot_remove_another_users_item(self, api_client, regular_user, product):
+        other_user = UserBase.objects.create(email='other2@example.com', user_name='other2', is_active=True)
+        WishlistItem.objects.create(user=other_user, product=product)
+        api_client.force_authenticate(regular_user)
+
+        response = api_client.delete(f'{WISHLIST_ITEMS_URL}{product.slug}/')
+
+        assert response.status_code == 404
+        assert WishlistItem.objects.filter(user=other_user, product=product).exists()

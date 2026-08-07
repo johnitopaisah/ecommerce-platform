@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Heart } from "lucide-react";
 import { useState } from "react";
 import type { Product } from "@/types";
 import { formatPrice, getImageUrl } from "@/lib/utils";
 import { useBasketStore } from "@/store/basketStore";
+import { useWishlistStore } from "@/store/wishlistStore";
+import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/Button";
 import SafeImage from "@/components/ui/SafeImage";
 import StarRating from "@/components/ui/StarRating";
@@ -16,13 +18,25 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { addItem, isLoading } = useBasketStore();
+  const { isAuthenticated } = useAuthStore();
+  const { isWishlisted, toggle } = useWishlistStore();
   const [added, setAdded] = useState(false);
+  const wishlisted = isWishlisted(product.slug);
 
   const handleAddToBasket = async (e: React.MouseEvent) => {
     e.preventDefault();
     await addItem(product.id, 1);
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
+  };
+
+  const handleToggleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      window.location.assign(`/login?next=${window.location.pathname}`);
+      return;
+    }
+    void toggle(product.slug);
   };
 
   return (
@@ -37,6 +51,16 @@ export default function ProductCard({ product }: ProductCardProps) {
             className="object-cover group-hover:scale-105 transition-transform duration-300"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           />
+          <button
+            onClick={handleToggleWishlist}
+            aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm transition-colors"
+          >
+            <Heart
+              size={16}
+              className={wishlisted ? "fill-red-500 text-red-500" : "text-gray-500"}
+            />
+          </button>
           {!product.in_stock && (
             <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
               <span className="text-sm font-medium text-gray-500">Out of stock</span>

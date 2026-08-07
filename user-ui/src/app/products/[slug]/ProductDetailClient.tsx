@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ShoppingCart, Package } from "lucide-react";
+import { ShoppingCart, Package, Heart } from "lucide-react";
 import { formatPrice, getImageUrl } from "@/lib/utils";
 import { useBasketStore } from "@/store/basketStore";
+import { useWishlistStore } from "@/store/wishlistStore";
+import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/Button";
 import SafeImage from "@/components/ui/SafeImage";
 import StarRating from "@/components/ui/StarRating";
@@ -12,13 +14,24 @@ import type { Product } from "@/types";
 
 export default function ProductDetailClient({ product }: { product: Product }) {
   const { addItem, isLoading } = useBasketStore();
+  const { isAuthenticated } = useAuthStore();
+  const { isWishlisted, toggle } = useWishlistStore();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const wishlisted = isWishlisted(product.slug);
 
   const handleAdd = async () => {
     await addItem(product.id, qty);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
+  };
+
+  const handleToggleWishlist = () => {
+    if (!isAuthenticated) {
+      window.location.assign(`/login?next=/products/${product.slug}`);
+      return;
+    }
+    void toggle(product.slug);
   };
 
   return (
@@ -44,7 +57,16 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           {product.category && (
             <p className="text-sm text-gray-500 mb-2">{product.category.name}</p>
           )}
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{product.title}</h1>
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{product.title}</h1>
+            <button
+              onClick={handleToggleWishlist}
+              aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+              className="p-2.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors shrink-0"
+            >
+              <Heart size={18} className={wishlisted ? "fill-red-500 text-red-500" : "text-gray-500"} />
+            </button>
+          </div>
 
           {product.review_count > 0 && (
             <div className="flex items-center gap-2 mb-4">

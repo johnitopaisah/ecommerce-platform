@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Product, ProductImage, Review
+from .models import Category, Product, ProductImage, Review, WishlistItem
 
 
 @admin.register(Category)
@@ -43,3 +43,11 @@ class ReviewAdmin(admin.ModelAdmin):
     list_editable = ('is_approved',)
     search_fields = ('product__title', 'user__email', 'title', 'comment')
     readonly_fields = ('product', 'user', 'rating', 'title', 'comment', 'verified_purchase', 'created', 'updated')
+
+
+@admin.register(WishlistItem)
+class WishlistItemAdmin(admin.ModelAdmin):
+    list_display = ('user', 'product', 'created')
+    list_filter = ('created',)
+    search_fields = ('user__email', 'product__title')
+    readonly_fields = ('user', 'product', 'created')

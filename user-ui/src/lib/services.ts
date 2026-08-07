@@ -9,6 +9,7 @@ import type {
   Order,
   CheckoutFormData,
   Review,
+  WishlistItem,
 } from "@/types";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -109,6 +110,17 @@ export const basketApi = {
   clear: () => api.delete<void>("/basket/"),
 
   merge: () => api.post<Basket>("/basket/merge/"),
+};
+
+// ── Wishlist ──────────────────────────────────────────────────────────────────
+export const wishlistApi = {
+  list: () => api.get<WishlistItem[]>("/wishlist/"),
+
+  add: (product_slug: string) =>
+    api.post<WishlistItem>("/wishlist/items/", { product_slug }),
+
+  remove: (product_slug: string) =>
+    api.delete<void>(`/wishlist/items/${product_slug}/`),
 };
 
 // ── Orders ────────────────────────────────────────────────────────────────────

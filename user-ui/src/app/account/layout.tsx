@@ -5,11 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, ShoppingBag, User, LogOut } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, User, LogOut, Heart } from "lucide-react";
 
 const NAV = [
   { href: "/account", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/account/orders", label: "Orders", icon: ShoppingBag },
+  { href: "/account/wishlist", label: "Wishlist", icon: Heart },
   { href: "/account/profile", label: "Profile", icon: User },
 ];
 

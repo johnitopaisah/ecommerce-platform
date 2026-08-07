@@ -23,13 +23,14 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from apps.orders.models import OrderItem, OrderStatus
-from .models import Category, Product, Review
+from .models import Category, Product, Review, WishlistItem
 from .serializers import (
     CategorySerializer,
     ProductListSerializer,
     ProductDetailSerializer,
     ReviewSerializer,
     ReviewCreateSerializer,
+    WishlistItemSerializer,
 )
 from .filters import ProductFilter
 
@@ -256,3 +257,65 @@ def product_reviews(request, slug):
          'detail': 'Thanks! Your review will appear once approved.'},
         status=status.HTTP_201_CREATED,
     )
+
+
+# ── Wishlist ─────────────────────────────────────────────────────────────────
+
+@extend_schema(tags=['wishlist'])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@throttle_classes([])
+def wishlist_list(request):
+    """List the current user's wishlist, most recently added first."""
+    items = (
+        WishlistItem.objects
+        .filter(user=request.user)
+        .select_related('product', 'product__category')
+    )
+    return Response(WishlistItemSerializer(items, many=True).data)
+
+
+@extend_schema(tags=['wishlist'])
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@throttle_classes([])
+def wishlist_add(request):
+    """
+    Add a product to the wishlist.
+    Body: { "product_slug": "..." }
+    Adding an already-wishlisted product is a no-op (200, not an error).
+    """
+    slug = request.data.get('product_slug')
+    if not slug:
+        return Response(
+            {'error': 'bad_request', 'detail': 'product_slug is required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        product = Product.objects.get(slug=slug, is_active=True)
+    except Product.DoesNotExist:
+        return Response(
+            {'error': 'not_found', 'detail': 'Product not found.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    item, created = WishlistItem.objects.get_or_create(user=request.user, product=product)
+    return Response(
+        WishlistItemSerializer(item).data,
+        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+    )
+
+
+@extend_schema(tags=['wishlist'])
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+@throttle_classes([])
+def wishlist_remove(request, slug):
+    """Remove a product from the current user's wishlist by product slug."""
+    deleted, _ = WishlistItem.objects.filter(user=request.user, product__slug=slug).delete()
+    if not deleted:
+        return Response(
+            {'error': 'not_found', 'detail': 'Item not in wishlist.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    return Response(status=status.HTTP_204_NO_CONTENT)

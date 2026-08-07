@@ -178,3 +178,29 @@ class Review(models.Model):
 
     def __str__(self):
         return f'{self.product.title} — {self.rating}★ by {self.user}'
+
+
+class WishlistItem(models.Model):
+    """A product a user has saved for later. No anonymous support — sign in required."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name='wishlist_items',
+        on_delete=models.CASCADE,
+    )
+    product = models.ForeignKey(
+        Product,
+        related_name='wishlisted_by',
+        on_delete=models.CASCADE,
+    )
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Wishlist Item'
+        verbose_name_plural = 'Wishlist Items'
+        ordering = ('-created',)
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'product'], name='one_wishlist_entry_per_user_per_product'),
+        ]
+
+    def __str__(self):
+        return f'{self.user} ♥ {self.product.title}'

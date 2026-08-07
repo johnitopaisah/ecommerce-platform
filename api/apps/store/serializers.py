@@ -3,7 +3,7 @@ Store serializers — Category, Product, ProductImage, Review.
 """
 
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, Review
+from .models import Category, Product, ProductImage, Review, WishlistItem
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -151,5 +151,32 @@ class ReviewModerationSerializer(serializers.ModelSerializer):
             'id', 'product_title', 'product_slug', 'reviewer_email',
             'rating', 'title', 'comment', 'verified_purchase',
             'is_approved', 'created',
+        )
+        read_only_fields = fields
+
+
+# ── Wishlist ───────────────────────────────────────────────────────────────────
+
+class WishlistItemSerializer(serializers.ModelSerializer):
+    """Flat product summary — avoids depending on the Avg/Count annotations
+    the product list/detail views apply, since this queryset traverses the
+    FK from WishlistItem rather than starting from Product directly."""
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_title = serializers.CharField(source='product.title', read_only=True)
+    product_slug = serializers.CharField(source='product.slug', read_only=True)
+    product_image = serializers.ImageField(source='product.image', read_only=True)
+    product_price = serializers.DecimalField(source='product.price', max_digits=10, decimal_places=2, read_only=True)
+    product_effective_price = serializers.DecimalField(
+        source='product.effective_price', max_digits=10, decimal_places=2, read_only=True
+    )
+    product_in_stock = serializers.BooleanField(source='product.in_stock', read_only=True)
+    category_name = serializers.CharField(source='product.category.name', read_only=True)
+
+    class Meta:
+        model = WishlistItem
+        fields = (
+            'id', 'product_id', 'product_title', 'product_slug', 'product_image',
+            'product_price', 'product_effective_price', 'product_in_stock',
+            'category_name', 'created',
         )
         read_only_fields = fields
