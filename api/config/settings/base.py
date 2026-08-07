@@ -144,14 +144,17 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ),
     'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
-    'DEFAULT_THROTTLE_CLASSES': (
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle',
-    ),
+    # No DEFAULT_THROTTLE_CLASSES — deliberately not a blanket default.
+    # A global anon/user default silently applies to every view, including
+    # ones with legitimate high-frequency traffic that isn't a brute-force
+    # target: it broke kube-probe health checks (every pod's own liveness/
+    # readiness checks share one counter) and separately broke the entire
+    # storefront homepage (user-ui's SSR proxies every visitor's request
+    # through the same pod IP, so all real traffic shared one bucket and
+    # exhausted it in minutes). Throttling is applied explicitly, only on
+    # apps/core/throttles.py's scoped classes, only on the specific
+    # brute-force/enumeration-sensitive auth endpoints that actually need it.
     'DEFAULT_THROTTLE_RATES': {
-        # Blanket defaults — generous, just a backstop against runaway clients.
-        'anon': '100/hour',
-        'user': '1000/hour',
         # Scoped rates on the specific brute-force/enumeration-sensitive
         # endpoints (apps/core/throttles.py) — tighter, keyed by IP since
         # these are all pre-authentication actions.

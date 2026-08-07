@@ -13,7 +13,7 @@ Admin endpoints (is_staff required) — in admin_views.py
 
 from django.db.models import Count
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
@@ -41,6 +41,11 @@ class ProductPagination(PageNumberPagination):
 @extend_schema(tags=['categories'])
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@throttle_classes([])  # public storefront browsing, not a brute-force target —
+# blanket DEFAULT_THROTTLE_RATES['anon'] broke the homepage: user-ui's SSR
+# proxies every visitor's request through http://api:8000 from the same pod
+# IP, so all real traffic shared one 100/hour bucket and exhausted it almost
+# immediately. Same root cause as the earlier health-check throttle incident.
 def category_list(request):
     """List all active categories with product counts."""
     categories = (
@@ -56,6 +61,7 @@ def category_list(request):
 @extend_schema(tags=['categories'])
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def category_detail(request, slug):
     """Retrieve a single category by slug."""
     try:
@@ -76,6 +82,7 @@ def category_detail(request, slug):
 @extend_schema(tags=['categories'])
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def category_products(request, slug):
     """List all active products in a specific category."""
     try:
@@ -119,6 +126,7 @@ def category_products(request, slug):
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def product_list(request):
     """
     List all active products.
@@ -160,6 +168,7 @@ def product_list(request):
 @extend_schema(tags=['products'])
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def product_detail(request, slug):
     """Retrieve a single product by slug."""
     try:
