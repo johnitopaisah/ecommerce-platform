@@ -6,18 +6,25 @@
 #  requests.memory=4Gi, limits.cpu=8, limits.memory=10Gi).
 #
 #  ShopNow steady-state (min HPA replicas: api×2, user-ui×2, admin-ui×1,
-#  postgres×1, redis×1):
+#  postgres×1, redis×1), using the api container's real 384Mi memory
+#  request (raised from 256Mi after kubectl top showed genuine ~300-314Mi
+#  steady-state usage per pod — see k8s/api/deployment.yaml):
 #    requests.cpu:    ~1,150m
-#    requests.memory: ~1,216Mi
-#    limits.cpu:      ~2,600m
-#    limits.memory:   ~2,432Mi
+#    requests.memory: ~1,472Mi
 #
-#  Quota below covers steady-state plus comfortable headroom for HPA
-#  to scale up under real load, without reserving the full theoretical
-#  ceiling of every HPA maxReplicas firing at once (api×10 alone would
-#  need 5,000m limits.cpu — unrealistic for a portfolio project sharing
-#  this cluster with portfolio-mcs). Revisit if real traffic approaches
-#  these numbers.
+#  Confirmed live: the original 2Gi requests.memory ceiling (sized for the
+#  old 256Mi/pod baseline) never got raised alongside that fix, so it
+#  silently became the binding constraint the next time the HPA scaled up
+#  — blocking the api-migrate PreSync hook from ever getting a pod and
+#  stalling every subsequent deploy. Node capacity check at the time:
+#  2 nodes × 4 CPU × ~16Gi memory, with portfolio-mcs's own quota already
+#  reserving requests.cpu=3/requests.memory=4Gi — plenty of real headroom
+#  existed, the quota number itself was just stale.
+#
+#  Sized below for HPA to scale up to ~6-8 api replicas plus one-off Job
+#  bursts (migrate) without hitting the ceiling, while still leaving
+#  requests.cpu=3/requests.memory=4Gi of margin against the raw 8 CPU /
+#  ~32Gi node total once portfolio-mcs's reservation is added in.
 # ============================================================
 
 apiVersion: v1
@@ -30,10 +37,10 @@ metadata:
     app.kubernetes.io/managed-by: argocd
 spec:
   hard:
-    requests.cpu:    "2"
-    requests.memory: "2Gi"
-    limits.cpu:      "4"
-    limits.memory:   "4Gi"
+    requests.cpu:    "3"
+    requests.memory: "4Gi"
+    limits.cpu:      "6"
+    limits.memory:   "6Gi"
     pods:            "15"
     services:        "10"
     persistentvolumeclaims: "3"
