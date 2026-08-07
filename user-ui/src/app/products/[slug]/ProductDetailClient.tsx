@@ -6,6 +6,8 @@ import { formatPrice, getImageUrl } from "@/lib/utils";
 import { useBasketStore } from "@/store/basketStore";
 import { Button } from "@/components/ui/Button";
 import SafeImage from "@/components/ui/SafeImage";
+import StarRating from "@/components/ui/StarRating";
+import ProductReviews from "./ProductReviews";
 import type { Product } from "@/types";
 
 export default function ProductDetailClient({ product }: { product: Product }) {
@@ -42,7 +44,16 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           {product.category && (
             <p className="text-sm text-gray-500 mb-2">{product.category.name}</p>
           )}
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">{product.title}</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{product.title}</h1>
+
+          {product.review_count > 0 && (
+            <div className="flex items-center gap-2 mb-4">
+              <StarRating value={product.average_rating ?? 0} size={15} />
+              <span className="text-sm text-gray-500">
+                {product.average_rating?.toFixed(1)} ({product.review_count} review{product.review_count === 1 ? "" : "s"})
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 mb-4">
             <span className="text-2xl font-bold text-gray-900">{formatPrice(product.effective_price)}</span>
@@ -80,6 +91,8 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           )}
         </div>
       </div>
+
+      <ProductReviews productSlug={product.slug} />
     </div>
   );
 }

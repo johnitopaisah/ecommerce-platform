@@ -4,6 +4,7 @@ Store views — public product and category endpoints.
 Public endpoints (no auth required):
   GET  /api/v1/products/                    list products (filter, search, paginate)
   GET  /api/v1/products/<slug>/             product detail
+  GET  /api/v1/products/<slug>/reviews/     list approved reviews (POST to create, auth required)
   GET  /api/v1/categories/                  list active categories
   GET  /api/v1/categories/<slug>/           category detail
   GET  /api/v1/categories/<slug>/products/  products in a category
@@ -11,7 +12,7 @@ Public endpoints (no auth required):
 Admin endpoints (is_staff required) — in admin_views.py
 """
 
-from django.db.models import Count
+from django.db.models import Avg, Count, Q
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -21,13 +22,23 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
-from .models import Category, Product
+from apps.orders.models import OrderItem, OrderStatus
+from .models import Category, Product, Review
 from .serializers import (
     CategorySerializer,
     ProductListSerializer,
     ProductDetailSerializer,
+    ReviewSerializer,
+    ReviewCreateSerializer,
 )
 from .filters import ProductFilter
+
+# Reused by both product_list and product_detail so the annotation logic
+# (and the "approved reviews only" rule) lives in exactly one place.
+RATING_ANNOTATIONS = {
+    'average_rating': Avg('reviews__rating', filter=Q(reviews__is_approved=True)),
+    'review_count': Count('reviews', filter=Q(reviews__is_approved=True)),
+}
 
 
 class ProductPagination(PageNumberPagination):
@@ -136,6 +147,7 @@ def product_list(request):
         Product.active
         .select_related('category')
         .prefetch_related('images')
+        .annotate(**RATING_ANNOTATIONS)
     )
 
     # Filter
@@ -177,6 +189,7 @@ def product_detail(request, slug):
             .filter(is_active=True)
             .select_related('category', 'created_by')
             .prefetch_related('images')
+            .annotate(**RATING_ANNOTATIONS)
             .get(slug=slug)
         )
     except Product.DoesNotExist:
@@ -185,3 +198,61 @@ def product_detail(request, slug):
             status=status.HTTP_404_NOT_FOUND,
         )
     return Response(ProductDetailSerializer(product).data)
+
+
+# ── Reviews ──────────────────────────────────────────────────────────────────
+
+@extend_schema(tags=['products'])
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+@throttle_classes([])
+def product_reviews(request, slug):
+    """
+    GET  — list approved reviews for a product (public).
+    POST — submit a review (requires auth; one per user per product).
+    """
+    try:
+        product = Product.objects.get(slug=slug, is_active=True)
+    except Product.DoesNotExist:
+        return Response(
+            {'error': 'not_found', 'detail': 'Product not found.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if request.method == 'GET':
+        reviews = (
+            Review.objects
+            .filter(product=product, is_approved=True)
+            .select_related('user')
+        )
+        return Response(ReviewSerializer(reviews, many=True).data)
+
+    # POST — creating a review requires auth, checked explicitly here (not
+    # via @permission_classes) so GET stays public on the same endpoint.
+    if not request.user.is_authenticated:
+        return Response(
+            {'error': 'unauthorized', 'detail': 'You must be signed in to leave a review.'},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    if Review.objects.filter(product=product, user=request.user).exists():
+        return Response(
+            {'error': 'bad_request', 'detail': 'You have already reviewed this product.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    serializer = ReviewCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    verified_purchase = OrderItem.objects.filter(
+        order__user=request.user,
+        order__status__in=(OrderStatus.CONFIRMED, OrderStatus.SHIPPED, OrderStatus.DELIVERED),
+        product=product,
+    ).exists()
+
+    review = serializer.save(product=product, user=request.user, verified_purchase=verified_purchase)
+    return Response(
+        {**ReviewSerializer(review).data, 'is_approved': False,
+         'detail': 'Thanks! Your review will appear once approved.'},
+        status=status.HTTP_201_CREATED,
+    )

@@ -81,6 +81,20 @@ export interface Order {
   updated: string;
 }
 
+// ── Reviews ───────────────────────────────────────────────────────────────────
+export interface Review {
+  id: number;
+  product_title: string;
+  product_slug: string;
+  reviewer_email: string;
+  rating: number;
+  title: string;
+  comment: string;
+  verified_purchase: boolean;
+  is_approved: boolean;
+  created: string;
+}
+
 // ── Stats ─────────────────────────────────────────────────────────────────────
 export interface AdminStats {
   users: { total: number; active: number; new_today: number };

@@ -8,6 +8,7 @@ import type {
   Basket,
   Order,
   CheckoutFormData,
+  Review,
 } from "@/types";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -67,6 +68,14 @@ export const productsApi = {
   }) => api.get<PaginatedResponse<Product>>("/products/", { params }),
 
   detail: (slug: string) => api.get<Product>(`/products/${slug}/`),
+};
+
+// ── Reviews ───────────────────────────────────────────────────────────────────
+export const reviewsApi = {
+  list: (productSlug: string) => api.get<Review[]>(`/products/${productSlug}/reviews/`),
+
+  create: (productSlug: string, data: { rating: number; title?: string; comment?: string }) =>
+    api.post<Review & { detail: string }>(`/products/${productSlug}/reviews/`, data),
 };
 
 // ── Categories ────────────────────────────────────────────────────────────────

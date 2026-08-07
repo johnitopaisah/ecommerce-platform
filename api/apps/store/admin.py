@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Product, ProductImage
+from .models import Category, Product, ProductImage, Review
 
 
 @admin.register(Category)
@@ -34,3 +34,12 @@ class ProductAdmin(admin.ModelAdmin):
         if not obj.pk:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ('product', 'user', 'rating', 'verified_purchase', 'is_approved', 'created')
+    list_filter = ('is_approved', 'verified_purchase', 'rating')
+    list_editable = ('is_approved',)
+    search_fields = ('product__title', 'user__email', 'title', 'comment')
+    readonly_fields = ('product', 'user', 'rating', 'title', 'comment', 'verified_purchase', 'created', 'updated')

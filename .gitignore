@@ -19,6 +19,8 @@ wheels/
 .installed.cfg
 *.egg
 
+.claude/
+
 # ── Django ────────────────────────────────────────────────────────────────────
 *.log
 local_settings.py

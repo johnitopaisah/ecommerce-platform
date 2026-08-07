@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens. Existing pages use plain Tailwind gray/red/green utilities
+ * directly and aren't being mass-migrated — these tokens exist for new work
+ * (ratings, status badges, toasts) that needs a single source of truth for
+ * semantic color rather than scattered ad-hoc bg-green-600/text-red-600.
+ */
+@theme {
+  --color-success-50: #f0fdf4;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+
+  --color-warning-50: #fffbeb;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+
+  --color-danger-50: #fef2f2;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+
+  --color-info-50: #eff6ff;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+
+  --color-star: #f59e0b;
+}
+
 :root {
   --background: #f9fafb;
   --foreground: #111827;

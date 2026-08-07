@@ -11,12 +11,13 @@ from drf_spectacular.utils import extend_schema
 
 from apps.core.permissions import IsAdminUser
 from apps.core.audit import log_admin_action
-from .models import Category, Product, ProductImage
+from .models import Category, Product, ProductImage, Review
 from .serializers import (
     CategorySerializer,
     ProductDetailSerializer,
     ProductWriteSerializer,
     ProductImageSerializer,
+    ReviewModerationSerializer,
 )
 
 
@@ -217,3 +218,59 @@ def admin_product_image_delete(request, slug, image_id):
         product.save(update_fields=['image'])
 
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Review moderation ─────────────────────────────────────────────────────────
+
+@extend_schema(tags=['admin'])
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def admin_review_list(request):
+    """
+    List all reviews for moderation.
+    ?is_approved=false — the moderation queue (default view for admin-ui).
+    ?is_approved=true  — already-published reviews.
+    Omit the param to see everything.
+    """
+    reviews = Review.objects.select_related('product', 'user').order_by('-created')
+
+    is_approved = request.query_params.get('is_approved')
+    if is_approved is not None:
+        reviews = reviews.filter(is_approved=is_approved.lower() == 'true')
+
+    return Response(ReviewModerationSerializer(reviews, many=True).data)
+
+
+@extend_schema(tags=['admin'])
+@api_view(['PATCH', 'DELETE'])
+@permission_classes([IsAdminUser])
+def admin_review_detail(request, review_id):
+    """PATCH {is_approved: true/false} to moderate; DELETE to remove."""
+    try:
+        review = Review.objects.select_related('product', 'user').get(id=review_id)
+    except Review.DoesNotExist:
+        return Response(
+            {'error': 'not_found', 'detail': 'Review not found.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if request.method == 'DELETE':
+        target = f'Review on {review.product.title} by {review.user.email}'
+        review.delete()
+        log_admin_action(request, 'review_delete', target)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    is_approved = request.data.get('is_approved')
+    if is_approved is None:
+        return Response(
+            {'error': 'bad_request', 'detail': 'is_approved is required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    review.is_approved = bool(is_approved)
+    review.save(update_fields=['is_approved'])
+    log_admin_action(
+        request,
+        'review_approve' if review.is_approved else 'review_reject',
+        f'Review on {review.product.title} by {review.user.email}',
+    )
+    return Response(ReviewModerationSerializer(review).data)

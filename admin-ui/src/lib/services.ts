@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import type { AuthTokens, User, Product, Category, Order, AdminStats } from "@/types";
+import type { AuthTokens, User, Product, Category, Order, AdminStats, Review } from "@/types";
 
 export interface ProductWritePayload {
   title: string;
@@ -66,4 +66,14 @@ export const usersApi = {
     api.get<User[]>("/admin/users/", { params }),
   detail: (id: number) => api.get<User>(`/admin/users/${id}/`),
   deactivate: (id: number) => api.post(`/admin/users/${id}/deactivate/`),
+};
+
+export const reviewsApi = {
+  list: (isApproved?: boolean) =>
+    api.get<Review[]>("/admin/reviews/", {
+      params: isApproved === undefined ? undefined : { is_approved: isApproved },
+    }),
+  approve: (id: number) => api.patch<Review>(`/admin/reviews/${id}/`, { is_approved: true }),
+  reject: (id: number) => api.patch<Review>(`/admin/reviews/${id}/`, { is_approved: false }),
+  delete: (id: number) => api.delete(`/admin/reviews/${id}/`),
 };

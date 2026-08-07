@@ -8,6 +8,7 @@ import { formatPrice, getImageUrl } from "@/lib/utils";
 import { useBasketStore } from "@/store/basketStore";
 import { Button } from "@/components/ui/Button";
 import SafeImage from "@/components/ui/SafeImage";
+import StarRating from "@/components/ui/StarRating";
 
 interface ProductCardProps {
   product: Product;
@@ -51,9 +52,16 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Info */}
         <div className="p-4">
           <p className="text-xs text-gray-400 mb-1">{product.category_name}</p>
-          <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-2 min-h-[2.5rem]">
+          <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1 min-h-[2.5rem]">
             {product.title}
           </h3>
+
+          {product.review_count > 0 && (
+            <div className="flex items-center gap-1.5 mb-2">
+              <StarRating value={product.average_rating ?? 0} size={12} />
+              <span className="text-xs text-gray-400">({product.review_count})</span>
+            </div>
+          )}
 
           {/* Price */}
           <div className="flex items-center gap-2 mb-3">

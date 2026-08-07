@@ -107,6 +107,20 @@ admin_user_urls = [
     ),
 ]
 
+# ── Admin review moderation URL patterns ────────────────────────────────────────
+admin_review_urls = [
+    path(
+        'reviews/',
+        store_admin_views.admin_review_list,
+        name='admin_review_list',
+    ),
+    path(
+        'reviews/<int:review_id>/',
+        store_admin_views.admin_review_detail,
+        name='admin_review_detail',
+    ),
+]
+
 urlpatterns = [
     path('django-admin/', admin.site.urls),
 
@@ -145,6 +159,7 @@ urlpatterns = [
             + admin_category_urls
             + admin_order_urls
             + admin_user_urls
+            + admin_review_urls
         )),
     ])),
 

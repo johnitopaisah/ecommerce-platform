@@ -57,6 +57,19 @@ export interface Product {
   images?: ProductImage[];
   in_stock: boolean;
   stock_quantity: number;
+  average_rating: number | null;
+  review_count: number;
+  created: string;
+}
+
+// ── Reviews ───────────────────────────────────────────────────────────────────
+export interface Review {
+  id: number;
+  reviewer_name: string;
+  rating: number;
+  title: string;
+  comment: string;
+  verified_purchase: boolean;
   created: string;
 }
 

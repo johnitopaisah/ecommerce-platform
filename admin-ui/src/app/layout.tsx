@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import AdminBootstrap from "@/components/AdminBootstrap";
+import Toaster from "@/components/ui/Toaster";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={geist.variable} suppressHydrationWarning>
       <body className="min-h-screen bg-gray-50 antialiased font-sans">
         <AdminBootstrap>{children}</AdminBootstrap>
+        <Toaster />
       </body>
     </html>
   );

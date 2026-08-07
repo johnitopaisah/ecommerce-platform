@@ -135,3 +135,46 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f'{self.product.title} — image {self.id}'
+
+
+class Review(models.Model):
+    """
+    A customer review of a product. One review per user per product.
+    Held for admin approval before appearing publicly — the public list/
+    aggregate endpoints only ever see is_approved=True rows.
+    """
+    product = models.ForeignKey(
+        Product,
+        related_name='reviews',
+        on_delete=models.CASCADE,
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name='reviews',
+        on_delete=models.CASCADE,
+    )
+    rating = models.PositiveSmallIntegerField(
+        choices=[(i, str(i)) for i in range(1, 6)],
+    )
+    title = models.CharField(max_length=150, blank=True)
+    comment = models.TextField(blank=True)
+
+    # Set once at creation time from the user's order history — not
+    # recomputed later, so it reflects "had they purchased it at the time".
+    verified_purchase = models.BooleanField(default=False)
+
+    is_approved = models.BooleanField(default=False, db_index=True)
+
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Review'
+        verbose_name_plural = 'Reviews'
+        ordering = ('-created',)
+        constraints = [
+            models.UniqueConstraint(fields=['product', 'user'], name='one_review_per_user_per_product'),
+        ]
+
+    def __str__(self):
+        return f'{self.product.title} — {self.rating}★ by {self.user}'

@@ -7,6 +7,7 @@ urlpatterns = [
     # Public
     path('', views.product_list, name='product_list'),
     path('<slug:slug>/', views.product_detail, name='product_detail'),
+    path('<slug:slug>/reviews/', views.product_reviews, name='product_reviews'),
 ]
 
 # Category and admin urls are registered directly in config/urls.py
