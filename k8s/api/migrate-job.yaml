@@ -7,6 +7,15 @@ metadata:
     app: shopnow
     component: api
     job-type: migrate
+  annotations:
+    # Job.spec.template is immutable in Kubernetes — a plain-resource sync
+    # tries to patch this Job in place on every image-tag bump and always
+    # fails with "field is immutable". Running it as a PreSync hook tells
+    # ArgoCD to delete the old Job and create a fresh one instead of
+    # patching, and guarantees migrations complete before the api
+    # Deployment's new pods roll out.
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 3
   ttlSecondsAfterFinished: 600
