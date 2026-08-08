@@ -175,6 +175,9 @@ urlpatterns = [
             path('items/<slug:slug>/', store_views.wishlist_remove, name='wishlist_remove'),
         ])),
 
+        # RBAC — role definitions, grants, request/approval workflow
+        path('rbac/', include('apps.rbac.urls', namespace='rbac')),
+
         # Admin-only endpoints
         path('admin/', include(
             admin_product_urls
