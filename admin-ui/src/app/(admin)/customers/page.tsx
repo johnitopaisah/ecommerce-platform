@@ -2,50 +2,50 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Search, CheckCircle, XCircle, UserX } from "lucide-react";
-import { usersApi } from "@/lib/services";
+import { customersApi, usersApi } from "@/lib/services";
 import type { User } from "@/types";
 import { formatDate } from "@/lib/utils";
 
-export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
+export default function CustomersPage() {
+  const [customers, setCustomers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
 
-  const fetchUsers = useCallback(async (currentFilter: string, currentSearch: string) => {
+  const fetchCustomers = useCallback(async (currentFilter: string, currentSearch: string) => {
     setLoading(true);
     try {
       const params: Record<string, string> = {};
       if (currentFilter === "active") params.is_active = "true";
       if (currentFilter === "inactive") params.is_active = "false";
       if (currentSearch) params.search = currentSearch;
-      const res = await usersApi.list(params);
-      setUsers(res.data);
+      const res = await customersApi.list(params);
+      setCustomers(res.data);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void fetchUsers(filter, "");
-  }, [filter, fetchUsers]);
+    void fetchCustomers(filter, "");
+  }, [filter, fetchCustomers]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    void fetchUsers(filter, search);
+    void fetchCustomers(filter, search);
   };
 
-  const handleDeactivate = async (user: User) => {
-    if (!confirm(`Deactivate ${user.email}?`)) return;
-    await usersApi.deactivate(user.id);
-    setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, is_active: false } : u));
+  const handleDeactivate = async (customer: User) => {
+    if (!confirm(`Deactivate ${customer.email}?`)) return;
+    await usersApi.deactivate(customer.id);
+    setCustomers((prev) => prev.map((c) => c.id === customer.id ? { ...c, is_active: false } : c));
   };
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{users.length} users</p>
+        <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{customers.length} customer{customers.length === 1 ? "" : "s"}</p>
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">
@@ -75,42 +75,37 @@ export default function UsersPage() {
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-sm text-gray-400">Loading users…</div>
+          <div className="p-8 text-center text-sm text-gray-400">Loading customers…</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  {["User", "Username", "Staff", "Active", "Joined", ""].map((h) => (
+                  {["Customer", "Username", "Active", "Joined", ""].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                {customers.map((customer) => (
+                  <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{user.full_name || "—"}</p>
-                      <p className="text-xs text-gray-400">{user.email}</p>
+                      <p className="font-medium text-gray-900">{customer.full_name || "—"}</p>
+                      <p className="text-xs text-gray-400">{customer.email}</p>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{user.user_name}</td>
+                    <td className="px-4 py-3 text-gray-600">{customer.user_name}</td>
                     <td className="px-4 py-3">
-                      {user.is_staff
-                        ? <CheckCircle size={15} className="text-purple-500" />
-                        : <span className="text-gray-300 text-xs">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {user.is_active
+                      {customer.is_active
                         ? <CheckCircle size={15} className="text-green-500" />
                         : <XCircle size={15} className="text-gray-300" />}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(user.created)}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(customer.created)}</td>
                     <td className="px-4 py-3">
-                      {user.is_active && !user.is_staff && (
+                      {customer.is_active && (
                         <button
-                          onClick={() => handleDeactivate(user)}
-                          title="Deactivate user"
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          onClick={() => handleDeactivate(customer)}
+                          title="Deactivate customer"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-danger-600 hover:bg-danger-50 transition-colors"
                         >
                           <UserX size={14} />
                         </button>
@@ -118,9 +113,9 @@ export default function UsersPage() {
                     </td>
                   </tr>
                 ))}
-                {!users.length && (
+                {!customers.length && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">No users found.</td>
+                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">No customers found.</td>
                   </tr>
                 )}
               </tbody>

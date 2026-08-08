@@ -113,6 +113,93 @@ export interface Coupon {
   updated: string;
 }
 
+// ── RBAC ──────────────────────────────────────────────────────────────────────
+export interface ActiveRole {
+  grant_id: number;
+  group_id: number;
+  group_name: string;
+  expires_at: string | null;
+}
+
+export interface TeamMember {
+  id: number;
+  email: string;
+  user_name: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  is_active: boolean;
+  is_superuser: boolean;
+  created: string;
+  roles: ActiveRole[];
+}
+
+export interface Permission {
+  id: number;
+  name: string;
+  codename: string;
+  codename_full: string;
+  app_label: string;
+}
+
+export interface Role {
+  id: number;
+  name: string;
+  permissions: Permission[];
+  permission_count: number;
+}
+
+export type GrantStatus = "active" | "revoked";
+
+export interface RoleGrant {
+  id: number;
+  user: number;
+  user_email: string;
+  group: number;
+  group_name: string;
+  granted_by: number | null;
+  granted_by_email: string | null;
+  granted_at: string;
+  expires_at: string | null;
+  status: GrantStatus;
+  is_currently_valid: boolean;
+  revoked_by: number | null;
+  revoked_by_email: string | null;
+  revoked_at: string | null;
+  reason: string;
+}
+
+export type RequestStatus = "pending" | "approved" | "denied" | "cancelled";
+
+export interface RoleGrantRequest {
+  id: number;
+  requester: number;
+  requester_email: string;
+  group: number;
+  group_name: string;
+  duration_hours: number | null;
+  justification: string;
+  status: RequestStatus;
+  reviewed_by: number | null;
+  reviewed_by_email: string | null;
+  reviewed_at: string | null;
+  decision_reason: string;
+  resulting_grant: number | null;
+  created: string;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  actor: number | null;
+  actor_email: string | null;
+  action: string;
+  target: string;
+  outcome: "success" | "denied" | "error";
+  detail: Record<string, unknown>;
+  ip_address: string | null;
+  created: string;
+}
+
 // ── Stats ─────────────────────────────────────────────────────────────────────
 export interface AdminStats {
   users: { total: number; active: number; new_today: number };

@@ -29,6 +29,22 @@ export function getOrderStatusColor(status: string): string {
   return map[status] ?? "bg-gray-100 text-gray-800 border-gray-200";
 }
 
+/** "3h 20m", "2d", "Expires soon", "Expired" — for time-bounded role grants. */
+export function formatTimeUntil(dateStr: string): string {
+  const diffMs = new Date(dateStr).getTime() - Date.now();
+  if (diffMs <= 0) return "Expired";
+
+  const minutes = Math.floor(diffMs / 60000);
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+
+  if (days > 0) return `${days}d${hours > 0 ? ` ${hours}h` : ""}`;
+  if (hours > 0) return `${hours}h${mins > 0 ? ` ${mins}m` : ""}`;
+  if (mins > 0) return `${mins}m`;
+  return "Expires soon";
+}
+
 export function getImageUrl(path: string | null | undefined): string {
   if (!path) return "/placeholder.svg";
   if (path.startsWith("http")) return path;

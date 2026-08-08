@@ -6,15 +6,18 @@ import {
   LayoutDashboard, Package, Tag, ShoppingBag, Users,
   LogOut, ChevronRight, ChevronsLeft, ChevronsRight,
   Store, ShieldCheck, Star, Percent,
+  UserCog, KeyRound, ClipboardCheck, ScrollText,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { rbacApi } from "@/lib/services";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
+  badgeKey?: "pendingRequests";
 }
 
 interface NavSection {
@@ -44,7 +47,19 @@ const SECTIONS: NavSection[] = [
   },
   {
     label: "People",
-    items: [{ href: "/users", label: "Customers", icon: Users }],
+    items: [{ href: "/customers", label: "Customers", icon: Users }],
+  },
+  {
+    // Deliberately separate from "People" — customers and team members are
+    // different audiences with different information needs, not one list
+    // with a filter toggle. See the RBAC design notes.
+    label: "Organization",
+    items: [
+      { href: "/team", label: "Team Members", icon: UserCog },
+      { href: "/roles", label: "Roles", icon: KeyRound },
+      { href: "/access-requests", label: "Access Requests", icon: ClipboardCheck, badgeKey: "pendingRequests" },
+      { href: "/audit-log", label: "Audit Log", icon: ScrollText },
+    ],
   },
 ];
 
@@ -60,6 +75,13 @@ export default function Sidebar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
+
+  useEffect(() => {
+    rbacApi.pendingRequests()
+      .then((res) => setPendingRequestCount(res.data.length))
+      .catch(() => {});
+  }, [pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -98,15 +120,16 @@ export default function Sidebar() {
               </p>
             )}
             <div className="space-y-1">
-              {section.items.map(({ href, label, icon: Icon }) => {
+              {section.items.map(({ href, label, icon: Icon, badgeKey }) => {
                 const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+                const badgeCount = badgeKey === "pendingRequests" ? pendingRequestCount : 0;
                 return (
                   <Link
                     key={href}
                     href={href}
                     title={collapsed ? label : undefined}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      "relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                       collapsed && "justify-center px-0",
                       active
                         ? "bg-white/10 text-white"
@@ -117,8 +140,16 @@ export default function Sidebar() {
                     {!collapsed && (
                       <>
                         <span className="truncate">{label}</span>
-                        {active && <ChevronRight size={14} className="ml-auto opacity-60 shrink-0" />}
+                        {badgeCount > 0 && (
+                          <span className="ml-auto bg-amber-500 text-white text-[10px] font-bold rounded-full min-w-4.5 h-4.5 flex items-center justify-center px-1 shrink-0">
+                            {badgeCount > 99 ? "99+" : badgeCount}
+                          </span>
+                        )}
+                        {active && badgeCount === 0 && <ChevronRight size={14} className="ml-auto opacity-60 shrink-0" />}
                       </>
+                    )}
+                    {collapsed && badgeCount > 0 && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full" />
                     )}
                   </Link>
                 );
