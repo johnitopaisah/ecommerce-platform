@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,7 +17,22 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, tryAdoptExistingSession } = useAuthStore();
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // If they're already signed in on the storefront and happen to be staff,
+  // adopt that session silently instead of making them log in twice — see
+  // tryAdoptExistingSession's docstring. Shows a brief "checking" state
+  // rather than flashing the login form before redirecting.
+  useEffect(() => {
+    let cancelled = false;
+    tryAdoptExistingSession().then((adopted) => {
+      if (cancelled) return;
+      if (adopted) router.push("/");
+      else setCheckingSession(false);
+    });
+    return () => { cancelled = true; };
+  }, [tryAdoptExistingSession, router]);
 
   const { register, handleSubmit, setError, formState: { errors } } =
     useForm<FormData>({ resolver: zodResolver(schema) });
@@ -40,6 +56,14 @@ export default function LoginPage() {
       });
     }
   };
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
+        <p className="text-gray-400 text-sm">Checking your session…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">

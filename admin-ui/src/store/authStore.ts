@@ -15,6 +15,7 @@ interface AuthState {
   fetchMe: () => Promise<void>;
   clearAuth: () => void;
   setHasHydrated: (value: boolean) => void;
+  tryAdoptExistingSession: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -81,6 +82,42 @@ export const useAuthStore = create<AuthState>()(
           set({ user: data, isAuthenticated: true });
         } catch {
           get().clearAuth();
+        }
+      },
+
+      // Storefront (user-ui) and admin-ui share an origin, so a storefront
+      // login's tokens ("access_token"/"refresh_token") sitting in
+      // localStorage are readable here even though admin-ui normally keeps
+      // its own separate "admin_access_token" pair. If someone is already
+      // signed in on the storefront and turns out to be staff, adopt that
+      // session instead of making them log in a second time — this is what
+      // "click Admin Panel and just land in the dashboard" actually needs.
+      // Reverts cleanly (no half-adopted state) if the token is missing,
+      // invalid, or belongs to a non-staff account.
+      tryAdoptExistingSession: async () => {
+        if (typeof window === "undefined") return false;
+        if (get().isAuthenticated) return true;
+
+        const storefrontAccess = localStorage.getItem("access_token");
+        const storefrontRefresh = localStorage.getItem("refresh_token");
+        if (!storefrontAccess || !storefrontRefresh) return false;
+
+        localStorage.setItem("admin_access_token", storefrontAccess);
+        localStorage.setItem("admin_refresh_token", storefrontRefresh);
+        set({ accessToken: storefrontAccess, refreshToken: storefrontRefresh });
+
+        try {
+          const { data } = await authApi.me();
+          if (!data.is_staff) {
+            get().clearAuth();
+            return false;
+          }
+          set({ user: data, isAuthenticated: true });
+          document.cookie = "admin_authenticated=1; path=/; max-age=604800; SameSite=Lax";
+          return true;
+        } catch {
+          get().clearAuth();
+          return false;
         }
       },
     }),
