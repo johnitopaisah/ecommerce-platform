@@ -75,8 +75,9 @@ class UserBase(AbstractBaseUser, PermissionsMixin):
         verbose_name = 'User'
         verbose_name_plural = 'Users'
         permissions = [
-            ('manage_users', 'Can manage user accounts (deactivate, reset password)'),
+            ('manage_users', 'Can manage customer accounts (deactivate, reset password)'),
             ('revoke_sessions', 'Can force-revoke a user session'),
+            ('manage_staff', 'Can provision new team member (internal staff) accounts'),
         ]
 
     def get_full_name(self):

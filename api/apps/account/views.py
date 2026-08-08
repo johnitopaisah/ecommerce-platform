@@ -28,6 +28,8 @@ from .serializers import (
     UserSerializer,
     UserUpdateSerializer,
     ChangePasswordSerializer,
+    TeamMemberSerializer,
+    TeamMemberCreateSerializer,
 )
 from .tokens import account_activation_token
 
@@ -226,20 +228,111 @@ def password_reset_confirm(request):
     return Response({'detail': 'Password has been reset successfully.'})
 
 
-# ── Admin user management ──────────────────────────────────────────────────────
+# ── Admin: customers vs. team members ────────────────────────────────────────
+#
+# Deliberately two distinct endpoints, not one list with an is_staff filter
+# toggle — the two audiences want genuinely different information (order/
+# wishlist-adjacent fields for a customer; role badges and 2FA-adjacent
+# status for a team member), and provisioning a new team member is a
+# meaningfully bigger deal than anything a customer-record view needs to do
+# (see account.manage_staff vs. account.manage_users).
 
-@extend_schema(tags=['admin'])
-@api_view(['GET'])
-@permission_classes([RequiresPermission('account.view_userbase')])
-def admin_user_list(request):
-    users = User.objects.all().order_by('-created')
+def _filter_by_search_and_active(users, request):
     is_active = request.query_params.get('is_active')
     if is_active is not None:
         users = users.filter(is_active=(is_active.lower() == 'true'))
     search = request.query_params.get('search', '').strip()
     if search:
         users = users.filter(email__icontains=search) | users.filter(user_name__icontains=search)
-    return Response(UserSerializer(users, many=True).data)
+    return users
+
+
+@extend_schema(tags=['admin'])
+@api_view(['GET'])
+@permission_classes([RequiresPermission('account.view_userbase')])
+def admin_customer_list(request):
+    users = _filter_by_search_and_active(User.objects.filter(is_staff=False), request)
+    return Response(UserSerializer(users.order_by('-created'), many=True).data)
+
+
+@extend_schema(tags=['admin'])
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def admin_team_list(request):
+    if request.method == 'GET':
+        require_permission(request, 'account.view_userbase')
+        from django.db.models import Prefetch, Q
+        from django.utils import timezone
+        from apps.rbac.models import RoleGrant
+
+        active_grants = Prefetch(
+            'role_grants',
+            queryset=(
+                RoleGrant.objects
+                .filter(status=RoleGrant.Status.ACTIVE)
+                .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now()))
+                .select_related('group')
+            ),
+            to_attr='_active_grants',
+        )
+        users = _filter_by_search_and_active(
+            User.objects.filter(is_staff=True).prefetch_related(active_grants), request,
+        )
+        return Response(TeamMemberSerializer(users.order_by('-created'), many=True).data)
+
+    require_permission(request, 'account.manage_staff')
+    serializer = TeamMemberCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+
+    initial_group = data.get('initial_group')
+    duration_hours = data.get('duration_hours')
+
+    if initial_group is not None:
+        from apps.rbac import services
+        if not services.can_manage_role(request.user, initial_group):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(
+                "You can only offer a role whose permissions are a subset of your own."
+            )
+
+    user = User(
+        email=data['email'],
+        user_name=data['user_name'],
+        first_name=data.get('first_name', ''),
+        last_name=data.get('last_name', ''),
+        is_staff=True,
+        is_active=True,  # an admin is vouching for this identity — no self-activation step
+    )
+    user.set_unusable_password()
+    user.save()
+
+    # Reuses the exact password-reset mechanism/email/frontend page — the
+    # new team member sets their own initial password via the same link a
+    # customer would use to reset one, rather than an admin ever knowing it.
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    reset_url = _frontend_url(f'/reset-password/{uid}/{token}/')
+    send_password_reset_email(user, reset_url)
+
+    grant = None
+    if initial_group is not None:
+        from datetime import timedelta
+        from django.utils import timezone
+        from apps.rbac.models import RoleGrant
+        expires_at = timezone.now() + timedelta(hours=duration_hours) if duration_hours else None
+        grant = RoleGrant.objects.create(
+            user=user, group=initial_group, granted_by=request.user, expires_at=expires_at,
+        )
+
+    from apps.core.audit import log_admin_action
+    log_admin_action(
+        request, 'team_member_create', f'User: {user.email}',
+        {'initial_role': initial_group.name if initial_group else None},
+    )
+
+    user._active_grants = [grant] if grant else []
+    return Response(TeamMemberSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema(tags=['admin'])

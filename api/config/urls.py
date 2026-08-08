@@ -87,9 +87,14 @@ admin_order_urls = [
 # ── Admin user URL patterns ───────────────────────────────────────────────────
 admin_user_urls = [
     path(
-        'users/',
-        account_views.admin_user_list,
-        name='admin_user_list',
+        'customers/',
+        account_views.admin_customer_list,
+        name='admin_customer_list',
+    ),
+    path(
+        'team/',
+        account_views.admin_team_list,
+        name='admin_team_list',
     ),
     path(
         'users/<int:user_id>/',

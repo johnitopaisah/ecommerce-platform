@@ -242,3 +242,168 @@ class TestPasswordReset:
         assert response.status_code == 400
         user.refresh_from_db()
         assert user.check_password('OldPassword9!')  # unchanged
+
+
+CUSTOMERS_URL = '/api/v1/admin/customers/'
+TEAM_URL = '/api/v1/admin/team/'
+
+
+@pytest.fixture
+def manage_staff_user(make_user):
+    """A user with exactly account.manage_staff — not a superuser — to
+    exercise the real permission check rather than the superuser bypass."""
+    from django.contrib.auth.models import Group, Permission
+    from apps.rbac.models import RoleGrant
+
+    user = make_user(email='hr@example.com', is_staff=True)
+    group = Group.objects.create(name='Team Provisioner Test')
+    group.permissions.add(
+        Permission.objects.get(codename='manage_staff', content_type__app_label='account')
+    )
+    RoleGrant.objects.create(user=user, group=group, expires_at=None)
+    return user
+
+
+@pytest.mark.django_db
+class TestCustomerVsTeamSplit:
+    def test_customer_list_excludes_staff(self, api_client, staff_user, make_user):
+        customer = make_user(email='shopper2@example.com')
+        api_client.force_authenticate(staff_user)
+
+        response = api_client.get(CUSTOMERS_URL)
+
+        emails = [u['email'] for u in response.data]
+        assert customer.email in emails
+        assert staff_user.email not in emails
+
+    def test_team_list_excludes_customers(self, api_client, staff_user, make_user):
+        customer = make_user(email='shopper3@example.com')
+        api_client.force_authenticate(staff_user)
+
+        response = api_client.get(TEAM_URL)
+
+        emails = [u['email'] for u in response.data]
+        assert staff_user.email in emails
+        assert customer.email not in emails
+
+    def test_team_list_shows_active_role_badges(self, api_client, staff_user, manage_staff_user):
+        api_client.force_authenticate(staff_user)
+
+        response = api_client.get(TEAM_URL)
+
+        entry = next(u for u in response.data if u['email'] == manage_staff_user.email)
+        assert entry['roles'][0]['group_name'] == 'Team Provisioner Test'
+
+    def test_regular_customer_cannot_view_team_list(self, api_client, regular_user):
+        api_client.force_authenticate(regular_user)
+        response = api_client.get(TEAM_URL)
+        assert response.status_code == 403
+
+
+@pytest.mark.django_db
+class TestCreateTeamMember:
+    def test_requires_manage_staff_not_just_manage_users(self, api_client, make_user):
+        from django.contrib.auth.models import Group, Permission
+        from apps.rbac.models import RoleGrant
+
+        support_only = make_user(email='support-only@example.com')
+        group = Group.objects.create(name='Support Only Test')
+        group.permissions.add(
+            Permission.objects.get(codename='manage_users', content_type__app_label='account')
+        )
+        RoleGrant.objects.create(user=support_only, group=group, expires_at=None)
+        api_client.force_authenticate(support_only)
+
+        response = api_client.post(
+            TEAM_URL, {'email': 'newhire@example.com', 'user_name': 'newhire'}, format='json',
+        )
+
+        assert response.status_code == 403
+
+    def test_qualified_user_can_create_team_member(self, api_client, manage_staff_user):
+        api_client.force_authenticate(manage_staff_user)
+
+        response = api_client.post(
+            TEAM_URL,
+            {'email': 'newhire2@example.com', 'user_name': 'newhire2', 'first_name': 'New'},
+            format='json',
+        )
+
+        assert response.status_code == 201
+        user = UserBase.objects.get(email='newhire2@example.com')
+        assert user.is_staff is True
+        assert user.is_active is True
+        assert user.has_usable_password() is False
+
+    def test_created_team_member_receives_password_set_email(self, api_client, manage_staff_user):
+        api_client.force_authenticate(manage_staff_user)
+
+        api_client.post(
+            TEAM_URL, {'email': 'newhire3@example.com', 'user_name': 'newhire3'}, format='json',
+        )
+
+        assert len(mail.outbox) == 1
+        assert 'reset-password' in mail.outbox[0].body
+
+    def test_duplicate_email_rejected(self, api_client, manage_staff_user, staff_user):
+        api_client.force_authenticate(manage_staff_user)
+
+        response = api_client.post(
+            TEAM_URL, {'email': staff_user.email, 'user_name': 'someoneelse'}, format='json',
+        )
+
+        assert response.status_code == 400
+
+    def test_initial_role_granted_only_if_subset_of_creators_permissions(
+        self, api_client, manage_staff_user,
+    ):
+        from django.contrib.auth.models import Group, Permission
+
+        broader_group = Group.objects.create(name='Broader Than Creator')
+        broader_group.permissions.add(
+            Permission.objects.get(codename='manage_staff', content_type__app_label='account'),
+            Permission.objects.get(codename='view_dashboard', content_type__app_label='core'),
+        )
+        api_client.force_authenticate(manage_staff_user)
+
+        response = api_client.post(
+            TEAM_URL,
+            {
+                'email': 'newhire4@example.com', 'user_name': 'newhire4',
+                'initial_group_id': broader_group.id,
+            },
+            format='json',
+        )
+
+        # manage_staff_user only holds manage_staff — broader_group also
+        # grants view_dashboard, which isn't a subset of what they hold.
+        assert response.status_code == 403
+        assert not UserBase.objects.filter(email='newhire4@example.com').exists()
+
+    def test_initial_role_granted_when_within_creators_permissions(
+        self, api_client, manage_staff_user,
+    ):
+        from django.contrib.auth.models import Group, Permission
+        from apps.rbac.models import RoleGrant
+
+        narrow_group = Group.objects.create(name='Narrow Test')
+        narrow_group.permissions.add(
+            Permission.objects.get(codename='manage_staff', content_type__app_label='account')
+        )
+        api_client.force_authenticate(manage_staff_user)
+
+        response = api_client.post(
+            TEAM_URL,
+            {
+                'email': 'newhire5@example.com', 'user_name': 'newhire5',
+                'initial_group_id': narrow_group.id, 'duration_hours': 4,
+            },
+            format='json',
+        )
+
+        assert response.status_code == 201
+        user = UserBase.objects.get(email='newhire5@example.com')
+        grant = RoleGrant.objects.get(user=user)
+        assert grant.group == narrow_group
+        assert grant.expires_at is not None
+        assert grant.granted_by == manage_staff_user

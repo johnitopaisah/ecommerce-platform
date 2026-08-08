@@ -3,6 +3,7 @@ Account serializers — registration, login response, profile read/update.
 """
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
@@ -134,3 +135,76 @@ class ChangePasswordSerializer(serializers.Serializer):
         if attrs['new_password'] != attrs['new_password2']:
             raise serializers.ValidationError({'new_password': 'Passwords do not match.'})
         return attrs
+
+
+# ── Team members (internal staff — distinct from customer accounts) ──────────
+
+class _ActiveRoleSerializer(serializers.Serializer):
+    """One currently-valid role grant, shaped for a badge in the UI."""
+    grant_id = serializers.IntegerField(source='id')
+    group_id = serializers.IntegerField(source='group.id')
+    group_name = serializers.CharField(source='group.name')
+    expires_at = serializers.DateTimeField()
+
+
+class TeamMemberSerializer(serializers.ModelSerializer):
+    """
+    Read shape for the Team Members roster — distinct from UserSerializer
+    (the customer-facing one) because the two audiences need different
+    information: role badges and superuser status here, order/wishlist-
+    adjacent profile fields there. `roles` expects the view to have
+    prefetched each user's active grants onto `_active_grants` (see
+    admin_team_list) — falls back to a live query if it wasn't, so this
+    serializer is still correct (just not optimally efficient) if reused
+    somewhere that skips the prefetch.
+    """
+    full_name = serializers.SerializerMethodField()
+    roles = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            'id', 'email', 'user_name', 'first_name', 'last_name', 'full_name',
+            'is_active', 'is_superuser', 'created', 'roles',
+        )
+        read_only_fields = fields
+
+    def get_full_name(self, obj):
+        return obj.get_full_name()
+
+    def get_roles(self, obj):
+        grants = getattr(obj, '_active_grants', None)
+        if grants is None:
+            from apps.rbac.models import RoleGrant
+            grants = obj.role_grants.filter(status=RoleGrant.Status.ACTIVE).select_related('group')
+        return _ActiveRoleSerializer(grants, many=True).data
+
+
+class TeamMemberCreateSerializer(serializers.Serializer):
+    """
+    Provisions a new internal account (is_staff=True, active immediately —
+    an admin creating this has already vouched for who it is, unlike public
+    self-registration). Optionally grants an initial role in the same
+    request; the view enforces the same subset rule used everywhere else
+    in RBAC (apps.rbac.services.can_manage_role) before honoring it.
+    """
+    email = serializers.EmailField()
+    user_name = serializers.CharField(max_length=150)
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    initial_group_id = serializers.PrimaryKeyRelatedField(
+        source='initial_group', queryset=Group.objects.all(), required=False, allow_null=True,
+    )
+    duration_hours = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+
+    def validate_email(self, value):
+        value = value.lower().strip()
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError('An account with this email already exists.')
+        return value
+
+    def validate_user_name(self, value):
+        value = value.lower().strip()
+        if User.objects.filter(user_name__iexact=value).exists():
+            raise serializers.ValidationError('This username is already taken.')
+        return value

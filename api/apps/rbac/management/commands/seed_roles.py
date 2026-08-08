@@ -84,9 +84,14 @@ ROLE_DEFINITIONS: dict[str, list[tuple[str, str]]] = {
     'QA': [
         ('store', 'view_product'), ('orders', 'view_order'), ('coupons', 'view_coupon'),
     ],
+    # The only role (besides Super Admin) that can provision new team
+    # member accounts — deliberately narrow, see manage_staff's docstring
+    # on UserBase.Meta.permissions. Minting a new internal identity is a
+    # meaningfully bigger deal than managing an existing customer record.
     'IT / Platform Ops': [
-        ('account', 'manage_users'), ('account', 'revoke_sessions'),
-        ('account', 'view_userbase'), ('rbac', 'grant_roles'), ('core', 'view_dashboard'),
+        ('account', 'manage_users'), ('account', 'manage_staff'),
+        ('account', 'revoke_sessions'), ('account', 'view_userbase'),
+        ('rbac', 'grant_roles'), ('core', 'view_dashboard'),
     ],
     'Security / Compliance': [
         ('core', 'view_audit_log'), ('account', 'revoke_sessions'),
