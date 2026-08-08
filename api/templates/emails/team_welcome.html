@@ -1,0 +1,33 @@
+{% extends "emails/base.html" %}
+{% block subject %}Your ShopNow team account is ready{% endblock %}
+{% block content %}
+  <h2>Welcome to the team</h2>
+  <p>Hi {{ user.first_name|default:user.user_name }}, an account has been created for you on the ShopNow admin panel.</p>
+
+  {% if password %}
+    <div class="highlight-box">
+      <p class="label">Email</p>
+      <p class="value">{{ user.email }}</p>
+      <p class="label" style="margin-top: 12px;">Temporary password</p>
+      <p class="value">{{ password }}</p>
+    </div>
+    <p class="small">Please sign in and change this password as soon as possible.</p>
+  {% endif %}
+
+  <div style="text-align: center; margin: 32px 0;">
+    <a href="{{ login_url }}" class="btn">Sign in to the admin panel</a>
+  </div>
+
+  <p class="small">Or copy and paste this link into your browser:</p>
+  <p class="small"><a href="{{ login_url }}" class="link">{{ login_url }}</a></p>
+
+  {% if not password %}
+    <hr class="divider">
+    <div class="highlight-box">
+      <p class="label">Next step</p>
+      <p style="margin-top: 6px; font-size: 14px; color: #52525b;">
+        Check your inbox for a separate email to set your password before signing in.
+      </p>
+    </div>
+  {% endif %}
+{% endblock %}

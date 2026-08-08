@@ -342,8 +342,49 @@ class TestCreateTeamMember:
             TEAM_URL, {'email': 'newhire3@example.com', 'user_name': 'newhire3'}, format='json',
         )
 
-        assert len(mail.outbox) == 1
+        # Two emails when no password is set by the admin: the set-your-own-
+        # password link, plus a separate welcome email pointing at the admin
+        # login URL (no password included in that one).
+        assert len(mail.outbox) == 2
         assert 'reset-password' in mail.outbox[0].body
+        assert '/admin-panel/login' in mail.outbox[1].body
+
+    def test_admin_set_password_creates_usable_account_and_emails_credentials(
+        self, api_client, manage_staff_user,
+    ):
+        api_client.force_authenticate(manage_staff_user)
+
+        response = api_client.post(
+            TEAM_URL,
+            {
+                'email': 'newhire6@example.com', 'user_name': 'newhire6',
+                'password': 'AdminSetPassw0rd!',
+            },
+            format='json',
+        )
+
+        assert response.status_code == 201
+        user = UserBase.objects.get(email='newhire6@example.com')
+        assert user.has_usable_password() is True
+        assert user.check_password('AdminSetPassw0rd!')
+
+        # Only one email in this path — the welcome email carries both the
+        # login URL and the password, so no separate reset link is needed.
+        assert len(mail.outbox) == 1
+        assert '/admin-panel/login' in mail.outbox[0].body
+        assert 'AdminSetPassw0rd!' in mail.outbox[0].body
+
+    def test_admin_set_password_rejects_weak_password(self, api_client, manage_staff_user):
+        api_client.force_authenticate(manage_staff_user)
+
+        response = api_client.post(
+            TEAM_URL,
+            {'email': 'newhire7@example.com', 'user_name': 'newhire7', 'password': 'short'},
+            format='json',
+        )
+
+        assert response.status_code == 400
+        assert not UserBase.objects.filter(email='newhire7@example.com').exists()
 
     def test_duplicate_email_rejected(self, api_client, manage_staff_user, staff_user):
         api_client.force_authenticate(manage_staff_user)

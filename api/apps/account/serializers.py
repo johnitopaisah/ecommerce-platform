@@ -187,6 +187,14 @@ class TeamMemberCreateSerializer(serializers.Serializer):
     self-registration). Optionally grants an initial role in the same
     request; the view enforces the same subset rule used everywhere else
     in RBAC (apps.rbac.services.can_manage_role) before honoring it.
+
+    `password` is optional and left blank by default — the recommended
+    path is still the emailed self-service link (set_unusable_password(),
+    handled by the view). Setting it here is an escape hatch for cases
+    where an admin needs the account usable immediately (e.g. handing over
+    a provisioned laptop); the view emails the credentials to the new user
+    either way, it just varies whether that email contains a link or the
+    password itself.
     """
     email = serializers.EmailField()
     user_name = serializers.CharField(max_length=150)
@@ -196,6 +204,7 @@ class TeamMemberCreateSerializer(serializers.Serializer):
         source='initial_group', queryset=Group.objects.all(), required=False, allow_null=True,
     )
     duration_hours = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
 
     def validate_email(self, value):
         value = value.lower().strip()
@@ -207,4 +216,9 @@ class TeamMemberCreateSerializer(serializers.Serializer):
         value = value.lower().strip()
         if User.objects.filter(user_name__iexact=value).exists():
             raise serializers.ValidationError('This username is already taken.')
+        return value
+
+    def validate_password(self, value):
+        if value:
+            validate_password(value)
         return value

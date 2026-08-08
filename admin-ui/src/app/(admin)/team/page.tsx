@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserPlus, CheckCircle, XCircle, X } from "lucide-react";
+import { UserPlus, CheckCircle, XCircle, X, RefreshCw } from "lucide-react";
 import { teamApi, rolesApi } from "@/lib/services";
 import { usePermissionsStore } from "@/store/permissionsStore";
 import type { TeamMember, Role } from "@/types";
@@ -18,11 +18,21 @@ interface FormState {
   last_name: string;
   initial_group_id: string;
   duration_hours: number | null;
+  password: string;
 }
 
 const emptyForm: FormState = {
   email: "", user_name: "", first_name: "", last_name: "",
-  initial_group_id: "", duration_hours: null,
+  initial_group_id: "", duration_hours: null, password: "",
+};
+
+// Cryptographically random, not just "long enough" — this may end up
+// emailed in plaintext, so it should at least not be guessable.
+const generatePassword = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
+  const bytes = new Uint32Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
 };
 
 export default function TeamMembersPage() {
@@ -32,6 +42,7 @@ export default function TeamMembersPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [passwordMode, setPasswordMode] = useState<"link" | "set">("link");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -61,6 +72,10 @@ export default function TeamMembersPage() {
       setError("Email and username are required.");
       return;
     }
+    if (passwordMode === "set" && !form.password.trim()) {
+      setError("Set a password, or switch back to emailing a setup link.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -71,9 +86,11 @@ export default function TeamMembersPage() {
         last_name: form.last_name.trim(),
         initial_group_id: form.initial_group_id ? Number(form.initial_group_id) : undefined,
         duration_hours: form.duration_hours ?? undefined,
+        password: passwordMode === "set" ? form.password.trim() : undefined,
       });
       setShowForm(false);
       setForm(emptyForm);
+      setPasswordMode("link");
       load();
     } catch (e: unknown) {
       const err = e as { response?: { data?: Record<string, string[] | string> } };
@@ -166,9 +183,6 @@ export default function TeamMembersPage() {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500 -mt-1">
-                They&apos;ll receive an email to set their own password — nobody here ever sets it for them.
-              </p>
               <Input id="email" label="Email *" type="email" value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })} />
               <Input id="user_name" label="Username *" value={form.user_name}
@@ -178,6 +192,55 @@ export default function TeamMembersPage() {
                   onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
                 <Input id="last_name" label="Last name" value={form.last_name}
                   onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-600">Password</label>
+                <div className="flex bg-gray-100 rounded-lg p-1 gap-1 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setPasswordMode("link")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                      passwordMode === "link" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Email a setup link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPasswordMode("set")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                      passwordMode === "set" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Set a password now
+                  </button>
+                </div>
+                {passwordMode === "link" ? (
+                  <p className="text-xs text-gray-500">
+                    They&apos;ll receive an email to set their own password — nobody here ever sets it for them.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <Input id="password" type="text" value={form.password}
+                          placeholder="Temporary password"
+                          onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                      </div>
+                      <Button type="button" variant="outline" size="md"
+                        onClick={() => setForm({ ...form, password: generatePassword() })}
+                        title="Generate a random password">
+                        <RefreshCw size={14} />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-amber-600">
+                      This password is emailed to them in plain text along with the login link —
+                      less secure than a self-service link. Use only when the account needs to be
+                      usable immediately.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-1">

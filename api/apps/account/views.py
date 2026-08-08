@@ -17,7 +17,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from apps.rbac.permissions import RequiresPermission, require_permission
-from apps.core.email import send_activation_email, send_password_reset_email
+from apps.core.email import send_activation_email, send_password_reset_email, send_team_welcome_email
 from apps.core.throttles import (
     RegisterRateThrottle,
     PasswordResetRateThrottle,
@@ -296,6 +296,8 @@ def admin_team_list(request):
                 "You can only offer a role whose permissions are a subset of your own."
             )
 
+    password = data.get('password') or ''
+
     user = User(
         email=data['email'],
         user_name=data['user_name'],
@@ -304,16 +306,28 @@ def admin_team_list(request):
         is_staff=True,
         is_active=True,  # an admin is vouching for this identity — no self-activation step
     )
-    user.set_unusable_password()
+    if password:
+        # Escape hatch from the default flow below — the admin creating this
+        # account chose to set a password directly instead of leaving it to
+        # the new team member. Usable immediately; login details (including
+        # the password, in this path only) go out by email regardless.
+        user.set_password(password)
+    else:
+        user.set_unusable_password()
     user.save()
 
-    # Reuses the exact password-reset mechanism/email/frontend page — the
-    # new team member sets their own initial password via the same link a
-    # customer would use to reset one, rather than an admin ever knowing it.
-    uid = urlsafe_base64_encode(force_bytes(user.pk))
-    token = default_token_generator.make_token(user)
-    reset_url = _frontend_url(f'/reset-password/{uid}/{token}/')
-    send_password_reset_email(user, reset_url)
+    login_url = _frontend_url('/admin-panel/login')
+    if password:
+        send_team_welcome_email(user, login_url, password=password)
+    else:
+        # Reuses the exact password-reset mechanism/email/frontend page — the
+        # new team member sets their own initial password via the same link a
+        # customer would use to reset one, rather than an admin ever knowing it.
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_url = _frontend_url(f'/reset-password/{uid}/{token}/')
+        send_password_reset_email(user, reset_url)
+        send_team_welcome_email(user, login_url)
 
     grant = None
     if initial_group is not None:
@@ -328,7 +342,10 @@ def admin_team_list(request):
     from apps.core.audit import log_admin_action
     log_admin_action(
         request, 'team_member_create', f'User: {user.email}',
-        {'initial_role': initial_group.name if initial_group else None},
+        {
+            'initial_role': initial_group.name if initial_group else None,
+            'password_set_by_admin': bool(password),
+        },
     )
 
     user._active_grants = [grant] if grant else []

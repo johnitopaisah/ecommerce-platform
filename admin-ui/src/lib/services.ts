@@ -83,6 +83,7 @@ export interface TeamMemberCreatePayload {
   last_name?: string;
   initial_group_id?: number;
   duration_hours?: number;
+  password?: string;
 }
 
 export const teamApi = {

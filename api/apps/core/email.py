@@ -70,6 +70,28 @@ def send_password_reset_email(user, reset_url: str):
     )
 
 
+def send_team_welcome_email(user, login_url: str, password: str | None = None):
+    """
+    Notify a newly-provisioned team member their account is ready.
+
+    When `password` is given, it's included in the email so the account is
+    usable immediately — a deliberate exception to this app's normal "we
+    never know your password" rule, only reached when an admin chooses that
+    path explicitly at creation time. When omitted, this just points them at
+    the separate password-reset email already sent to set their own.
+    """
+    _send(
+        subject='Your ShopNow team account is ready',
+        to_email=user.email,
+        template='team_welcome',
+        context={
+            'user': user,
+            'login_url': login_url,
+            'password': password,
+        },
+    )
+
+
 def send_order_confirmation_email(order):
     """Send an order confirmation to the customer."""
     _send(
