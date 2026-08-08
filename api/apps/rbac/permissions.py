@@ -95,3 +95,19 @@ def _log_denial(request, codenames):
         detail={'required_permissions': list(codenames)},
         outcome=AdminActionLog.Outcome.DENIED,
     )
+
+
+def require_permission(request, *codenames: str):
+    """
+    Imperative-style check for inside a view body — needed wherever a
+    single function-based view handles multiple HTTP methods that each
+    require a *different* permission (DRF's @permission_classes applies
+    one check to the whole view, method-agnostic, which doesn't fit e.g.
+    "GET needs view_product, POST needs add_product" on the same
+    function). Raises PermissionDenied (auto-logged, same as
+    RequiresPermission) if the requirement isn't met.
+    """
+    if not user_has_permission(request.user, *codenames):
+        _log_denial(request, codenames)
+        from rest_framework.exceptions import PermissionDenied
+        raise PermissionDenied(f"Requires: {', '.join(codenames)}")

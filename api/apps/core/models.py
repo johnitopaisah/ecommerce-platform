@@ -42,6 +42,7 @@ class AdminActionLog(models.Model):
         verbose_name_plural = 'Admin action logs'
         permissions = [
             ('view_audit_log', 'Can view the audit log'),
+            ('view_dashboard', 'Can view the admin dashboard overview/stats'),
         ]
 
     def __str__(self):

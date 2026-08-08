@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
-from apps.core.permissions import IsAdminUser
+from apps.rbac.permissions import RequiresPermission, require_permission
 from apps.core.email import send_activation_email, send_password_reset_email
 from apps.core.throttles import (
     RegisterRateThrottle,
@@ -230,7 +230,7 @@ def password_reset_confirm(request):
 
 @extend_schema(tags=['admin'])
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([RequiresPermission('account.view_userbase')])
 def admin_user_list(request):
     users = User.objects.all().order_by('-created')
     is_active = request.query_params.get('is_active')
@@ -244,14 +244,16 @@ def admin_user_list(request):
 
 @extend_schema(tags=['admin'])
 @api_view(['GET', 'PUT', 'PATCH'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAuthenticated])
 def admin_user_detail(request, user_id):
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
         return Response({'error': 'not_found', 'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
     if request.method == 'GET':
+        require_permission(request, 'account.view_userbase')
         return Response(UserSerializer(user).data)
+    require_permission(request, 'account.manage_users')
     serializer = UserUpdateSerializer(user, data=request.data, partial=(request.method == 'PATCH'))
     serializer.is_valid(raise_exception=True)
     serializer.save()
@@ -260,7 +262,7 @@ def admin_user_detail(request, user_id):
 
 @extend_schema(tags=['admin'])
 @api_view(['POST'])
-@permission_classes([IsAdminUser])
+@permission_classes([RequiresPermission('account.manage_users')])
 def admin_user_deactivate(request, user_id):
     try:
         user = User.objects.get(id=user_id)
@@ -277,7 +279,7 @@ def admin_user_deactivate(request, user_id):
 
 @extend_schema(tags=['admin'])
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([RequiresPermission('core.view_dashboard')])
 def admin_stats(request):
     from django.utils import timezone
     from datetime import timedelta

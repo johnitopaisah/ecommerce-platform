@@ -1,7 +1,8 @@
 """
-Authorization coverage tests for admin-only store endpoints — verifies
-IsAdminUser is actually enforced (not just present in the source), and that
-the admin audit log (apps/core/models.AdminActionLog) records writes.
+Authorization coverage tests for admin-only store endpoints — verifies the
+RBAC permission checks (apps.rbac.permissions) are actually enforced (not
+just present in the source), and that the admin audit log
+(apps/core/models.AdminActionLog) records writes.
 """
 
 import pytest

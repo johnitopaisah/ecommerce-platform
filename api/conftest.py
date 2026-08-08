@@ -45,4 +45,17 @@ def regular_user(make_user):
 
 @pytest.fixture
 def staff_user(make_user):
-    return make_user(email='staff@example.com', is_staff=True)
+    """
+    'Can do any admin thing' test actor — is_superuser, not just is_staff.
+    Since RBAC (apps.rbac) replaced the old blanket is_staff-only IsAdminUser
+    check, is_staff alone no longer grants any admin action; it only gates
+    "is this an internal account" (admin-ui login, Django's own
+    /django-admin/). Every existing test across the suite was written
+    assuming staff_user could perform any admin action — is_superuser
+    preserves that without rewriting every call site, and it's also
+    literally correct: superuser is this system's "Super Admin" role (see
+    apps.rbac.permissions — no Group needed for it, it's an unconditional
+    bypass). Granular, non-superuser permission enforcement has its own
+    dedicated coverage in apps/rbac/test_workflow.py.
+    """
+    return make_user(email='staff@example.com', is_staff=True, is_superuser=True)

@@ -11,8 +11,8 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 
 from apps.basket import service as basket_service
-from apps.core.permissions import IsAdminUser
 from apps.core.email import send_order_confirmation_email, send_order_status_update_email
+from apps.rbac.permissions import RequiresPermission, require_permission
 from .models import Order, OrderItem, OrderStatus
 from .serializers import OrderSerializer, OrderCreateSerializer, OrderStatusUpdateSerializer
 
@@ -144,7 +144,7 @@ def confirm_payment(order_key: str):
 
 @extend_schema(tags=['admin'])
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([RequiresPermission('orders.view_order')])
 def admin_order_list(request):
     orders = Order.objects.prefetch_related('items').select_related('user').order_by('-created')
     status_filter = request.query_params.get('status')
@@ -156,9 +156,16 @@ def admin_order_list(request):
     return Response(OrderSerializer(orders, many=True).data)
 
 
+# Status transitions that void or reverse the sale need refund-level
+# authority, not just fulfillment authority — an Order Fulfillment role can
+# push an order through processing/shipped/delivered but shouldn't be able
+# to cancel or refund one on their own.
+_REFUND_LEVEL_STATUSES = {OrderStatus.CANCELLED, OrderStatus.REFUNDED}
+
+
 @extend_schema(tags=['admin'])
 @api_view(['PUT'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAuthenticated])
 def admin_order_status_update(request, order_number):
     try:
         order = Order.objects.get(order_number=order_number)
@@ -169,8 +176,14 @@ def admin_order_status_update(request, order_number):
         )
     serializer = OrderStatusUpdateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    target_status = serializer.validated_data['status']
+    if target_status in _REFUND_LEVEL_STATUSES:
+        require_permission(request, 'orders.refund_full')
+    else:
+        require_permission(request, 'orders.advance_status')
+
     old_status = order.status
-    order.status = serializer.validated_data['status']
+    order.status = target_status
     order.save(update_fields=['status'])
 
     if order.status != old_status:

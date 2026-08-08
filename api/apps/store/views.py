@@ -9,7 +9,7 @@ Public endpoints (no auth required):
   GET  /api/v1/categories/<slug>/           category detail
   GET  /api/v1/categories/<slug>/products/  products in a category
 
-Admin endpoints (is_staff required) — in admin_views.py
+Admin endpoints (RBAC-permission gated) — in admin_views.py
 """
 
 from django.db.models import Avg, Count, Q

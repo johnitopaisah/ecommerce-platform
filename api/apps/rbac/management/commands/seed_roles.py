@@ -30,6 +30,7 @@ ROLE_DEFINITIONS: dict[str, list[tuple[str, str]]] = {
         ('store', 'manage_inventory'), ('store', 'manage_pricing'),
         ('store', 'add_category'), ('store', 'change_category'),
         ('store', 'delete_category'), ('store', 'view_category'),
+        ('core', 'view_dashboard'),
     ],
     # Flagged as an open question during design (real headcount, or
     # premature subdivision of Store Manager?) — seeded anyway so the
@@ -39,18 +40,21 @@ ROLE_DEFINITIONS: dict[str, list[tuple[str, str]]] = {
     ],
     'Order Fulfillment': [
         ('orders', 'view_order'), ('orders', 'advance_status'),
+        ('core', 'view_dashboard'),
     ],
     'Customer Support': [
         ('orders', 'view_order'), ('orders', 'refund_partial'),
-        ('account', 'view_userbase'),
+        ('account', 'view_userbase'), ('core', 'view_dashboard'),
     ],
     'Marketing': [
         ('coupons', 'add_coupon'), ('coupons', 'change_coupon'),
         ('coupons', 'delete_coupon'), ('coupons', 'view_coupon'),
+        ('core', 'view_dashboard'),
     ],
     'Finance': [
         ('orders', 'view_order'), ('orders', 'refund_full'),
-        ('orders', 'refund_partial'), ('payment', 'view_payment'),
+        ('orders', 'refund_partial'), ('orders', 'advance_status'),
+        ('payment', 'view_payment'), ('core', 'view_dashboard'),
     ],
     'Content Moderator': [
         ('store', 'view_review'), ('store', 'moderate_reviews'),
@@ -58,7 +62,7 @@ ROLE_DEFINITIONS: dict[str, list[tuple[str, str]]] = {
     'Auditor': [
         ('store', 'view_product'), ('store', 'view_category'), ('store', 'view_review'),
         ('orders', 'view_order'), ('coupons', 'view_coupon'),
-        ('account', 'view_userbase'), ('core', 'view_audit_log'),
+        ('account', 'view_userbase'), ('core', 'view_audit_log'), ('core', 'view_dashboard'),
     ],
     # ── Platform / engineering ──────────────────────────────────────────
     # Broad read access + audit visibility, deliberately no write access —
@@ -69,7 +73,7 @@ ROLE_DEFINITIONS: dict[str, list[tuple[str, str]]] = {
     'Developer': [
         ('store', 'view_product'), ('store', 'view_category'), ('store', 'view_review'),
         ('orders', 'view_order'), ('coupons', 'view_coupon'),
-        ('account', 'view_userbase'), ('core', 'view_audit_log'),
+        ('account', 'view_userbase'), ('core', 'view_audit_log'), ('core', 'view_dashboard'),
     ],
     # Deliberately minimal (read-only) until the QA-needs-write-access
     # question is resolved — see the design notes: that ask looked more
@@ -82,11 +86,11 @@ ROLE_DEFINITIONS: dict[str, list[tuple[str, str]]] = {
     ],
     'IT / Platform Ops': [
         ('account', 'manage_users'), ('account', 'revoke_sessions'),
-        ('account', 'view_userbase'), ('rbac', 'grant_roles'),
+        ('account', 'view_userbase'), ('rbac', 'grant_roles'), ('core', 'view_dashboard'),
     ],
     'Security / Compliance': [
         ('core', 'view_audit_log'), ('account', 'revoke_sessions'),
-        ('account', 'view_userbase'),
+        ('account', 'view_userbase'), ('core', 'view_dashboard'),
     ],
 }
 

@@ -22,7 +22,7 @@ from rest_framework.response import Response
 from apps.core.audit import log_admin_action
 from . import services
 from .models import RoleGrant, RoleGrantRequest
-from .permissions import RequiresPermission, get_effective_permissions
+from .permissions import RequiresPermission, get_effective_permissions, require_permission
 from .serializers import (
     DecisionSerializer,
     GroupSerializer,
@@ -46,8 +46,7 @@ def role_list(request):
         groups = Group.objects.prefetch_related('permissions__content_type').order_by('name')
         return Response(GroupSerializer(groups, many=True).data)
 
-    if not RequiresPermission('rbac.manage_roles')().has_permission(request, None):
-        raise PermissionDenied('You need rbac.manage_roles to define new roles.')
+    require_permission(request, 'rbac.manage_roles')
 
     serializer = GroupWriteSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -68,8 +67,7 @@ def role_detail(request, group_id):
     if request.method == 'GET':
         return Response(GroupSerializer(group).data)
 
-    if not RequiresPermission('rbac.manage_roles')().has_permission(request, None):
-        raise PermissionDenied('You need rbac.manage_roles to edit roles.')
+    require_permission(request, 'rbac.manage_roles')
 
     if request.method == 'DELETE':
         log_admin_action(request, 'role_delete', f'Role: {group.name}')
