@@ -20,6 +20,7 @@ from apps.orders import views as order_views
 from apps.orders.admin_views import admin_order_mark_paid
 from apps.account import views as account_views
 from apps.coupons import views as coupon_views
+from apps.core.admin_views import admin_audit_log_list
 
 # Require a verified TOTP device for /django-admin/ access — see
 # apps/account/management/commands/setup_admin_2fa.py to provision one.
@@ -110,6 +111,11 @@ admin_user_urls = [
         'stats/',
         account_views.admin_stats,
         name='admin_stats',
+    ),
+    path(
+        'audit-log/',
+        admin_audit_log_list,
+        name='admin_audit_log_list',
     ),
 ]
 
