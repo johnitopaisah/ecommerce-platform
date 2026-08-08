@@ -12,11 +12,18 @@ def _client_ip(request):
     return request.META.get('REMOTE_ADDR')
 
 
-def log_admin_action(request, action: str, target: str, detail: dict | None = None):
+def log_admin_action(
+    request,
+    action: str,
+    target: str,
+    detail: dict | None = None,
+    outcome: str = AdminActionLog.Outcome.SUCCESS,
+):
     AdminActionLog.objects.create(
         actor=request.user if request.user.is_authenticated else None,
         action=action,
         target=target,
+        outcome=outcome,
         detail=detail or {},
         ip_address=_client_ip(request),
     )

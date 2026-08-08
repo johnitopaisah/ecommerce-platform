@@ -41,6 +41,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     'apps.core',
     'apps.account',
+    'apps.rbac',
     'apps.store',
     'apps.basket',
     'apps.orders',

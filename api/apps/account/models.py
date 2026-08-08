@@ -74,6 +74,10 @@ class UserBase(AbstractBaseUser, PermissionsMixin):
     class Meta:
         verbose_name = 'User'
         verbose_name_plural = 'Users'
+        permissions = [
+            ('manage_users', 'Can manage user accounts (deactivate, reset password)'),
+            ('revoke_sessions', 'Can force-revoke a user session'),
+        ]
 
     def get_full_name(self):
         return f'{self.first_name} {self.last_name}'.strip()

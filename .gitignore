@@ -20,6 +20,7 @@ wheels/
 *.egg
 
 .claude/
+MONITORING_IMPLEMENTATION_PLAN.md
 
 # ── Django ────────────────────────────────────────────────────────────────────
 *.log

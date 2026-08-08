@@ -93,6 +93,10 @@ class Product(models.Model):
         verbose_name = 'Product'
         verbose_name_plural = 'Products'
         ordering = ('-created',)
+        permissions = [
+            ('manage_inventory', 'Can update stock levels only'),
+            ('manage_pricing', 'Can update prices only'),
+        ]
 
     @property
     def in_stock(self):
@@ -172,6 +176,9 @@ class Review(models.Model):
         verbose_name = 'Review'
         verbose_name_plural = 'Reviews'
         ordering = ('-created',)
+        permissions = [
+            ('moderate_reviews', 'Can approve, reject, or delete reviews'),
+        ]
         constraints = [
             models.UniqueConstraint(fields=['product', 'user'], name='one_review_per_user_per_product'),
         ]

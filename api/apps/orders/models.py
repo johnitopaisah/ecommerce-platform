@@ -81,6 +81,11 @@ class Order(models.Model):
         ordering = ('-created',)
         verbose_name = 'Order'
         verbose_name_plural = 'Orders'
+        permissions = [
+            ('advance_status', 'Can advance order status through the fulfillment pipeline'),
+            ('refund_full', 'Can issue a full refund'),
+            ('refund_partial', 'Can issue a partial refund'),
+        ]
 
     def save(self, *args, **kwargs):
         if not self.order_number:
