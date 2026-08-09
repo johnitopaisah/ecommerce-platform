@@ -80,6 +80,8 @@ spec:
               # line and the Job still reports Complete/exit 0.
               echo "Running migrations..."
               python manage.py migrate --noinput
+              echo "Seeding RBAC role taxonomy..."
+              python manage.py seed_roles
               echo "Collecting static files..."
               python manage.py collectstatic --noinput
               echo "Done."
