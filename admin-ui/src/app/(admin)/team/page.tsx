@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { UserPlus, CheckCircle, XCircle, X, RefreshCw } from "lucide-react";
-import { teamApi, rolesApi } from "@/lib/services";
+import { teamApi, rolesApi, rbacApi } from "@/lib/services";
 import { usePermissionsStore } from "@/store/permissionsStore";
 import type { TeamMember, Role } from "@/types";
 import { formatDate, extractApiError } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import RoleBadge, { SuperAdminBadge } from "@/components/rbac/RoleBadge";
 import DurationSelect from "@/components/rbac/DurationSelect";
+import { useToastStore } from "@/store/toastStore";
 
 interface FormState {
   email: string;
@@ -37,6 +38,7 @@ const generatePassword = () => {
 
 export default function TeamMembersPage() {
   const { hasPermission, permissions, isSuperuser } = usePermissionsStore();
+  const { show } = useToastStore();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +101,23 @@ export default function TeamMembersPage() {
     }
   };
 
+  // Mirrors the backend's own subset-rule bypass for who can act at all —
+  // not the enforcement (services.revoke_grant checks per-role on the
+  // server), just avoids showing a control that's guaranteed to 403 for
+  // someone who holds no revocable permissions whatsoever.
+  const canRevoke = isSuperuser || hasPermission("rbac.grant_roles");
+
+  const handleRevoke = async (grantId: number, memberLabel: string, roleName: string) => {
+    if (!confirm(`Revoke "${roleName}" from ${memberLabel}?`)) return;
+    try {
+      await rbacApi.revokeGrant(grantId);
+      show(`Revoked ${roleName} from ${memberLabel}.`, "success");
+      load();
+    } catch (e: unknown) {
+      show(extractApiError(e, "Could not revoke role."), "error");
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between flex-wrap gap-3">
@@ -140,7 +159,14 @@ export default function TeamMembersPage() {
                       <div className="flex flex-wrap gap-1.5 max-w-md">
                         {member.is_superuser && <SuperAdminBadge />}
                         {member.roles.map((r) => (
-                          <RoleBadge key={r.grant_id} name={r.group_name} expiresAt={r.expires_at} />
+                          <RoleBadge
+                            key={r.grant_id}
+                            name={r.group_name}
+                            expiresAt={r.expires_at}
+                            onRevoke={canRevoke
+                              ? () => handleRevoke(r.grant_id, member.full_name || member.email, r.group_name)
+                              : undefined}
+                          />
                         ))}
                         {!member.is_superuser && !member.roles.length && (
                           <span className="text-xs text-gray-400">No roles assigned</span>

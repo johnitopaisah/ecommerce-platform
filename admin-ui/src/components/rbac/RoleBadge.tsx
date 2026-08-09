@@ -1,4 +1,4 @@
-import { Clock, Crown } from "lucide-react";
+import { Clock, Crown, X } from "lucide-react";
 import { formatTimeUntil } from "@/lib/utils";
 
 // Deterministic color per role name (hash-based) — no backend "category"
@@ -25,9 +25,10 @@ function colorForRole(name: string): string {
 interface RoleBadgeProps {
   name: string;
   expiresAt?: string | null;
+  onRevoke?: () => void;
 }
 
-export default function RoleBadge({ name, expiresAt }: RoleBadgeProps) {
+export default function RoleBadge({ name, expiresAt, onRevoke }: RoleBadgeProps) {
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${colorForRole(name)}`}
@@ -38,6 +39,16 @@ export default function RoleBadge({ name, expiresAt }: RoleBadgeProps) {
           <Clock size={10} />
           {formatTimeUntil(expiresAt)}
         </span>
+      )}
+      {onRevoke && (
+        <button
+          type="button"
+          onClick={onRevoke}
+          title={`Revoke ${name}`}
+          className="opacity-50 hover:opacity-100 hover:text-danger-700 -mr-0.5"
+        >
+          <X size={11} />
+        </button>
       )}
     </span>
   );
