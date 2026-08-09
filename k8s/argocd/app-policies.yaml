@@ -1,29 +1,29 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: shopnow-policies
-  namespace: argocd
-  labels:
-    app.kubernetes.io/name: shopnow-policies
-    app.kubernetes.io/part-of: shopnow
-    app.kubernetes.io/component: policies
-    app.kubernetes.io/managed-by: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  project: shopnow
-  source:
-    repoURL: https://github.com/johnitopaisah/ecommerce-platform
-    targetRevision: develop
-    path: k8s/policies
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: ecommerce
-  syncPolicy:
-    automated:
-      selfHeal: true
-      prune: true
-    syncOptions:
-      - CreateNamespace=false
+# apiVersion: argoproj.io/v1alpha1
+# kind: Application
+# metadata:
+#   name: shopnow-policies
+#   namespace: argocd
+#   labels:
+#     app.kubernetes.io/name: shopnow-policies
+#     app.kubernetes.io/part-of: shopnow
+#     app.kubernetes.io/component: policies
+#     app.kubernetes.io/managed-by: argocd
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "0"
+#   finalizers:
+#     - resources-finalizer.argocd.argoproj.io
+# spec:
+#   project: shopnow
+#   source:
+#     repoURL: https://github.com/johnitopaisah/ecommerce-platform
+#     targetRevision: develop
+#     path: k8s/policies
+#   destination:
+#     server: https://kubernetes.default.svc
+#     namespace: ecommerce
+#   syncPolicy:
+#     automated:
+#       selfHeal: true
+#       prune: true
+#     syncOptions:
+#       - CreateNamespace=false
