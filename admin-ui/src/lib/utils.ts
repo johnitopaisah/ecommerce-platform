@@ -45,6 +45,26 @@ export function formatTimeUntil(dateStr: string): string {
   return "Expires soon";
 }
 
+/**
+ * Pulls a human-readable message out of an Axios error from the API.
+ * The backend's global exception handler (apps.core.exceptions) always
+ * shapes 400s as {error: "bad_request", detail: "...", errors: {field:
+ * [...]}} — `detail` is already the right message to show; grabbing the
+ * first object value instead (as several call sites used to) surfaces the
+ * literal string "bad_request" rather than the actual reason.
+ */
+export function extractApiError(err: unknown, fallback = "Something went wrong."): string {
+  const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
+  if (!data) return fallback;
+  if (typeof data.detail === "string" && data.detail) return data.detail;
+  const errors = data.errors as Record<string, string[] | string> | undefined;
+  if (errors) {
+    const first = Object.values(errors)[0];
+    if (first) return Array.isArray(first) ? first[0] : first;
+  }
+  return fallback;
+}
+
 export function getImageUrl(path: string | null | undefined): string {
   if (!path) return "/placeholder.svg";
   if (path.startsWith("http")) return path;

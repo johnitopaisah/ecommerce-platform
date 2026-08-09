@@ -6,7 +6,7 @@ import { rbacApi, rolesApi } from "@/lib/services";
 import type { RoleGrantRequest, Role, RequestStatus } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { formatDate } from "@/lib/utils";
+import { formatDate, extractApiError } from "@/lib/utils";
 import DurationSelect from "@/components/rbac/DurationSelect";
 import { useToastStore } from "@/store/toastStore";
 
@@ -61,10 +61,7 @@ export default function AccessRequestsPage() {
       show("Request submitted.", "success");
       load();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: Record<string, string[] | string> } };
-      const data = err?.response?.data;
-      const firstError = data ? Object.values(data)[0] : null;
-      setFormError((Array.isArray(firstError) ? firstError[0] : firstError) || "Could not submit request.");
+      setFormError(extractApiError(e, "Could not submit request."));
     } finally {
       setSubmitting(false);
     }

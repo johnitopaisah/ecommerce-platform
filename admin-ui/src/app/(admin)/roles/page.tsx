@@ -8,6 +8,7 @@ import type { Role, Permission } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import RoleBadge from "@/components/rbac/RoleBadge";
+import { extractApiError } from "@/lib/utils";
 
 interface FormState {
   name: string;
@@ -86,10 +87,7 @@ export default function RolesPage() {
       setForm({ name: "", codenames: new Set() });
       load();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: Record<string, string[] | string> } };
-      const data = err?.response?.data;
-      const firstError = data ? Object.values(data)[0] : null;
-      setError((Array.isArray(firstError) ? firstError[0] : firstError) || "Could not save role.");
+      setError(extractApiError(e, "Could not save role."));
     } finally {
       setSaving(false);
     }

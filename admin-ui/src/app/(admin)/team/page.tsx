@@ -5,7 +5,7 @@ import { UserPlus, CheckCircle, XCircle, X, RefreshCw } from "lucide-react";
 import { teamApi, rolesApi } from "@/lib/services";
 import { usePermissionsStore } from "@/store/permissionsStore";
 import type { TeamMember, Role } from "@/types";
-import { formatDate } from "@/lib/utils";
+import { formatDate, extractApiError } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import RoleBadge, { SuperAdminBadge } from "@/components/rbac/RoleBadge";
@@ -93,10 +93,7 @@ export default function TeamMembersPage() {
       setPasswordMode("link");
       load();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: Record<string, string[] | string> } };
-      const data = err?.response?.data;
-      const firstError = data ? Object.values(data)[0] : null;
-      setError((Array.isArray(firstError) ? firstError[0] : firstError) || "Could not create team member.");
+      setError(extractApiError(e, "Could not create team member."));
     } finally {
       setSaving(false);
     }
