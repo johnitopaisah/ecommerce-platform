@@ -90,10 +90,10 @@ spec:
                 name: api-config
           resources:
             requests:
-              cpu: "100m"
+              cpu: "50m"
               memory: "256Mi"
             limits:
-              cpu: "500m"
+              cpu: "400m"
               memory: "512Mi"
           volumeMounts:
             - name: staticfiles
