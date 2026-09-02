@@ -91,3 +91,5 @@ k8s/secrets/api-secret.yaml
 
 # ── Personal working notes — not project history ─────────────────────────────
 TODO.md
+
+port-scan.sh
