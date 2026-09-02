@@ -20,11 +20,34 @@ spec:
         component: redis
     spec:
       # redis:7-alpine defaults to root despite having a "redis" user (uid
-      # 999, gid 1000) — fsGroup fixes up the mounted PVC's group ownership
-      # to allow the non-root process to keep writing its existing data.
+      # 999, gid 1000). fsGroup alone was meant to fix up the mounted PVC's
+      # group ownership, but on minikube's hostPath-provisioner it doesn't
+      # reliably apply — confirmed repeatedly in production: the provisioner
+      # resets the directory to root:root on volume (re)bind, independent of
+      # fsGroup, causing Redis's BGSAVE to fail with "Permission denied" and
+      # trip its stop-writes-on-bgsave-error protection (which then fails the
+      # api Deployment's /ready/ check, since it probes Redis connectivity).
+      # The init container below is the same fix already proven for Grafana.
       securityContext:
         runAsNonRoot: true
         fsGroup: 1000
+      initContainers:
+        - name: fix-permissions
+          image: busybox:1.36
+          command: ["sh", "-c", "chown -R 999:1000 /data"]
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "50m"
+              memory: "32Mi"
       containers:
         - name: redis
           image: redis:7-alpine
